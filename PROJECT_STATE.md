@@ -90,7 +90,7 @@ Decide which experiment we want to run first:
 - Added susceptibility + C2 analysis section in `notebooks/plot_generation_sequential.ipynb` (single-image and all-images averages, multiple noise levels). Uses CLIP patch embeddings from `trajectory_data.npz`, optional flip-aware matching, and KMeans discretization for C2.
 - Added error bars: bootstrap SEM across trajectories for susceptibility (single image), SEM across trajectories for C2, and SEM across images for all-images plots.
 - Updated plots to use shaded SEM bands (no error bars), and label noise levels as ρ = t/tmax.
-- Enforced consistent max U-turn length across noise levels for single-image plots (and optional for all-images).
+- Single-image plots now group noise levels by max U-turn length (e.g., 100-step vs 200-step) and generate separate figures per group.
 - Added speedups for all-images C2 via optional global codebooks and sampling limits.
 - Added notebook export helpers and download links in `notebooks/plot_generation_sequential.ipynb`:
   - Copies saved figures to `notebooks/_exports` (or `NOTEBOOK_EXPORT_DIR`).
