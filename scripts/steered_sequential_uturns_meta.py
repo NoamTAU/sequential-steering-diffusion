@@ -174,12 +174,16 @@ def main():
     # Load Models
     model, diffusion = create_model_and_diffusion(**args_to_dict(args, model_and_diffusion_defaults().keys()))
     model.load_state_dict(th.load(args.model_path, map_location="cpu"))
+    if args.use_fp16:
+        # Convert on CPU before moving to GPU to reduce peak memory.
+        model.convert_to_fp16()
     model.to(device); model.eval()
-    if args.use_fp16: model.convert_to_fp16()
 
     classifier, classifier_preprocess, _ = load_classifier(args.classifier_name)
+    if args.classifier_use_fp16:
+        # Convert on CPU before moving to GPU to reduce peak memory.
+        classifier.convert_to_fp16()
     classifier.to(device); classifier.eval()
-    if args.classifier_use_fp16: classifier.convert_to_fp16()
 
     # Load Image
     diffusion_resize = Resize([args.image_size, args.image_size], Image.BICUBIC)
