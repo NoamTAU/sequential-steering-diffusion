@@ -87,4 +87,10 @@ Decide which experiment we want to run first:
   - Uses hardcoded SSH paths under `/work/pcsl/Noam/...`.
   - Optional auto‑selection of a “nice” trajectory using a drift/smoothness proxy from saved CLIP patch embeddings.
 - Added a discovery cell in `notebooks/plot_generation_sequential.ipynb` to scan available images, noise levels, trajectory counts, and approximate max U‑turns.
+- Added susceptibility + C2 analysis section in `notebooks/plot_generation_sequential.ipynb` (single-image and all-images averages, multiple noise levels). Uses CLIP patch embeddings from `trajectory_data.npz`, optional flip-aware matching, and KMeans discretization for C2.
+- Added error bars: bootstrap SEM across trajectories for susceptibility (single image), SEM across trajectories for C2, and SEM across images for all-images plots.
+- Added notebook export helpers and download links in `notebooks/plot_generation_sequential.ipynb`:
+  - Copies saved figures to `notebooks/_exports` (or `NOTEBOOK_EXPORT_DIR`).
+  - Displays clickable download links in JupyterLab via `FileLink`.
+- Added `download_plots.sh` helper to fetch `/work/pcsl/Noam/sequential_diffusion/results/plots` to local machine via rsync/scp.
 - Added `sync_repo.sh` to pull (rebase), commit, and push in one command.
