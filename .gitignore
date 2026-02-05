@@ -1,25 +1,44 @@
+# --- System & Python ---
 .DS_Store
 __pycache__/
-classify_image_graph_def.pb
-results/
-datasets/imagenet*
-datasets/tiny-imagenet*
-datasets/imagenet_wnid.txt
-datasets/tiny-imagenet-200.zip
-models/
-guided_diffusion.egg-info
-diffusion_commands.sh
-datasets/upsampling/*
-smooth_upsample.sh
-datasets/ILSVRC2012
-datasets/diffused_ILSVRC2012_validation/*
-time_iterations.sh
-*.sh
-slurm*
-classifier_statistics/*
-correlations_measurements/*
-# notebooks/*
-corr_function.run
-Wavelet_coefficients/*
-Fourier_coefficients/*
-Clip_correlations/*
+*.py[cod]
+.ipynb_checkpoints/
+
+# --- Large Data Files (Global Ignore) ---
+*.npz
+*.pt
+*.pth
+*.pkl
+*.pk
+*.png
+*.jpg
+*.jpeg
+*.out
+*.err
+
+# --- Slurm Logs ---
+slurm_logs/
+scripts/slurm_logs/
+
+# --- Heavy Results Directories (Explicitly Ignore) ---
+scripts/results/
+scripts/classifier_statistics/
+scripts/classifier_statistics_debug/
+scripts/sequential_analysis_results/
+scripts/sequential_analysis_results_debug/
+scripts/single_uturn_analysis_results/
+scripts/single_uturn_analysis_results_newer/
+scripts/single_uturn_analysis_results_old/
+scripts/steering_experiments/
+scripts/steering_experiments_meta/
+scripts/steering_experiments_v*/
+
+# --- Models Directory ---
+# Ignore everything inside models...
+models/*
+# ...Except the .gitkeep file (so the empty folder is tracked)
+!models/.gitkeep
+
+# --- Datasets Directory ---
+datasets/*
+!datasets/.gitkeep
