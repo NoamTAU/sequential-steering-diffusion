@@ -18,6 +18,9 @@ conda activate llm_physics
 mkdir -p slurm_logs
 
 # GPU status (helps debug OOM)
+echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+echo "SLURM_JOB_GPUS=$SLURM_JOB_GPUS"
+nvidia-smi -L
 nvidia-smi
 
 # Config

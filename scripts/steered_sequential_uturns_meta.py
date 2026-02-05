@@ -169,9 +169,19 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 
 def main():
     args = create_argparser().parse_args()
-    device = "cuda" if th.cuda.is_available() else "cpu"
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+
+    def log_cuda_mem(prefix):
+        if device.type != "cuda":
+            return
+        free, total = th.cuda.mem_get_info()
+        print(f"{prefix} CUDA free: {free/1e9:.2f} GB / {total/1e9:.2f} GB")
     
     # Load Models
+    if device.type == "cuda":
+        th.cuda.set_device(0)
+        log_cuda_mem("Before model init")
+
     model, diffusion = create_model_and_diffusion(**args_to_dict(args, model_and_diffusion_defaults().keys()))
     model.load_state_dict(th.load(args.model_path, map_location="cpu"))
     if args.use_fp16:
@@ -180,7 +190,14 @@ def main():
             model.convert_to_fp16()
         else:
             model.half()
-    model.to(device); model.eval()
+    try:
+        model.to(device); model.eval()
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower() and device.type == "cuda":
+            log_cuda_mem("OOM during model.to")
+        raise
+    if device.type == "cuda":
+        log_cuda_mem("After model.to")
 
     classifier, classifier_preprocess, _ = load_classifier(args.classifier_name)
     if args.classifier_use_fp16:
@@ -189,7 +206,12 @@ def main():
             classifier.convert_to_fp16()
         else:
             classifier.half()
-    classifier.to(device); classifier.eval()
+    try:
+        classifier.to(device); classifier.eval()
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower() and device.type == "cuda":
+            log_cuda_mem("OOM during classifier.to")
+        raise
 
     # Load Image
     diffusion_resize = Resize([args.image_size, args.image_size], Image.BICUBIC)
