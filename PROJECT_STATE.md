@@ -97,3 +97,7 @@ Decide which experiment we want to run first:
   - Displays clickable download links in JupyterLab via `FileLink`.
 - Added `download_plots.sh` helper to fetch `/work/pcsl/Noam/sequential_diffusion/results/plots` to local machine via rsync/scp.
 - Added `sync_repo.sh` to pull (rebase), commit, and push in one command.
+- Added guided vs unguided latent comparison section to `notebooks/plot_generation_sequential.ipynb`:
+  - Loads steering meta-cat trajectory (`steering_meta_v2`) and unguided sequential trajectory.
+  - Computes ConvNeXt layer cosine similarity vs step 0 (guided vs unguided) and plots a grid.
+  - Plots dog/cat meta-class probability mass over steps for guided vs unguided.
