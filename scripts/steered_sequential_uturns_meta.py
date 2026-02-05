@@ -30,8 +30,9 @@ def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight):
     with th.no_grad():
         # Keep input dtype aligned with classifier to avoid FP16/FP32 mismatch.
         clf_dtype = next(classifier.parameters()).dtype
-        batch_images = batch_images.to(clf_dtype)
-        logits = classifier(preprocess(batch_images))
+        processed = preprocess(batch_images)
+        processed = processed.to(clf_dtype)
+        logits = classifier(processed)
         
         # Calculate Log-Probability of the Meta-Classes
         cat_score = th.logsumexp(logits[:, CAT_INDICES], dim=1)
