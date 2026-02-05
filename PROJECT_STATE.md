@@ -86,4 +86,5 @@ Decide which experiment we want to run first:
   - Generates a horizontal “cartoon” of sequential U‑turns.
   - Uses hardcoded SSH paths under `/work/pcsl/Noam/...`.
   - Optional auto‑selection of a “nice” trajectory using a drift/smoothness proxy from saved CLIP patch embeddings.
+- Added a discovery cell in `notebooks/plot_generation_sequential.ipynb` to scan available images, noise levels, trajectory counts, and approximate max U‑turns.
 - Added `sync_repo.sh` to pull (rebase), commit, and push in one command.
