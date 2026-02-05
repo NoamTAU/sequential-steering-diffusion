@@ -125,39 +125,43 @@ python scripts/probe_manifold.py \
 
 These are ready-to-run job files. Edit the parameter block at the top as needed.
 
-- `scripts/run_sequential.slurm`
+- `scripts/slurm/sequential/run_sequential.slurm`
   - Single sequential run (one image, one noise).
-  - `sbatch scripts/run_sequential.slurm`
+  - `sbatch scripts/slurm/sequential/run_sequential.slurm`
 
-- `scripts/run_grid_search.slurm`
+- `scripts/slurm/sequential/run_grid_search.slurm`
   - Array over noise levels for one image.
-  - `sbatch scripts/run_grid_search.slurm`
+  - `sbatch scripts/slurm/sequential/run_grid_search.slurm`
 
-- `scripts/run_production.slurm`
+- `scripts/slurm/sequential/run_production.slurm`
   - Array over images and noise levels using `scripts/image_list.txt`.
-  - `sbatch scripts/run_production.slurm`
+  - `sbatch scripts/slurm/sequential/run_production.slurm`
 
-- `scripts/run_single_uturn_baseline.slurm`
+- `scripts/slurm/baselines/run_single_uturn_baseline.slurm`
   - One-step baseline across images/noise.
-  - `sbatch scripts/run_single_uturn_baseline.slurm`
+  - `sbatch scripts/slurm/baselines/run_single_uturn_baseline.slurm`
 
-- `scripts/run_debug_sweep.slurm`
+- `scripts/slurm/baselines/run_debug_sweep.slurm`
   - Debug sweep with respacing (fast single U-turn).
-  - `sbatch scripts/run_debug_sweep.slurm`
+  - `sbatch scripts/slurm/baselines/run_debug_sweep.slurm`
 
-- `scripts/extend_trajectories.slurm`
+- `scripts/slurm/sequential/extend_trajectories.slurm`
   - Extend existing trajectories by N U-turns.
-  - `sbatch scripts/extend_trajectories.slurm`
+  - `sbatch scripts/slurm/sequential/extend_trajectories.slurm`
 
-- `scripts/run_steering_experiment.slurm`
+- `scripts/slurm/steering/run_steering_experiment.slurm`
   - Guided steering (dogs → cats example).
-  - `sbatch scripts/run_steering_experiment.slurm`
+  - `sbatch scripts/slurm/steering/run_steering_experiment.slurm`
 
-- `scripts/run_manifold_probe.slurm`
+- `scripts/slurm/steering/run_steering_meta.slurm`
+  - Meta steering (dog↔cat) using `steered_sequential_uturns_meta.py`.
+  - `sbatch scripts/slurm/steering/run_steering_meta.slurm`
+
+- `scripts/slurm/manifold/run_manifold_probe.slurm`
   - Unguided probe with full logits.
-  - `sbatch scripts/run_manifold_probe.slurm`
+  - `sbatch scripts/slurm/manifold/run_manifold_probe.slurm`
 
-- `scripts/run_experiment.slurm`
+- `scripts/slurm/misc/run_experiment.slurm`
   - Forward/back dataset sampling (`dataset_sample-forw_back.py`).
 
 All Slurm scripts assume:

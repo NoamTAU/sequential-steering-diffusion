@@ -46,7 +46,7 @@ def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight):
         total_cat_prob = probs[best_idx, CAT_INDICES].sum().item()
         total_dog_prob = probs[best_idx, DOG_INDICES].sum().item()
         
-        return scores, best_idx, best_score, total_cat_prob, total_dog_prob
+        return scores, best_idx, best_score, total_cat_prob, total_dog_prob, cat_score, dog_score
 
 def run_steering_trajectory(args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, trajectory_dir):
     
@@ -58,14 +58,18 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     probs_dog = []
     probs_cat = []
     attempts_log = [] 
-    force_history = [] # [mean, std] per batch
+    force_history = [] # [mean, std] per batch (combined score)
+    force_history_cat = [] # [mean, std] per batch (cat score delta)
+    force_history_dog = [] # [mean, std] per batch (dog score delta)
 
     # --- Step 0 ---
-    scores_0, best_idx, best_score, p_cat, p_dog = get_meta_score_full(
+    scores_0, best_idx, best_score, p_cat, p_dog, cat_score0, dog_score0 = get_meta_score_full(
         classifier, classifier_preprocess, current_image, args.penalty
     )
     
     current_score = best_score # Initialize current score
+    current_cat = cat_score0[0].item()
+    current_dog = dog_score0[0].item()
     
     probs_dog.append(p_dog)
     probs_cat.append(p_cat)
@@ -107,7 +111,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     sample_img = out["sample"]
                 
                 # 3. Evaluate Meta-Proposals (Get Full Batch Scores)
-                batch_scores, best_idx, best_score, best_p_cat, best_p_dog = get_meta_score_full(
+                batch_scores, best_idx, best_score, best_p_cat, best_p_dog, cat_scores, dog_scores = get_meta_score_full(
                     classifier, classifier_preprocess, sample_img, args.penalty
                 )
                 
@@ -119,6 +123,12 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                 
                 # We log every batch attempt to see the force landscape over time
                 force_history.append([mean_force, std_force])
+
+                # --- META FORCE (CAT/DOG) ---
+                cat_deltas = cat_scores - current_cat
+                dog_deltas = dog_scores - current_dog
+                force_history_cat.append([cat_deltas.mean().item(), cat_deltas.std().item()])
+                force_history_dog.append([dog_deltas.mean().item(), dog_deltas.std().item()])
                 
                 # 4. Acceptance Logic
                 if best_score > current_score or retries == MAX_RETRIES - 1:
@@ -127,6 +137,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     
                     score_diff = best_score - current_score
                     current_score = best_score
+                    current_cat = cat_scores[best_idx].item()
+                    current_dog = dog_scores[best_idx].item()
                     
                     probs_dog.append(best_p_dog)
                     probs_cat.append(best_p_cat)
@@ -148,7 +160,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     # Save Force Data Incrementally
                     np.savez(
                         os.path.join(trajectory_dir, "force_stats.npz"),
-                        force=np.array(force_history)
+                        force=np.array(force_history),
+                        force_cat=np.array(force_history_cat),
+                        force_dog=np.array(force_history_dog),
                     )
                 else:
                     retries += 1
