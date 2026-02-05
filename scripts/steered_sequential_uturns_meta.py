@@ -176,13 +176,19 @@ def main():
     model.load_state_dict(th.load(args.model_path, map_location="cpu"))
     if args.use_fp16:
         # Convert on CPU before moving to GPU to reduce peak memory.
-        model.convert_to_fp16()
+        if hasattr(model, "convert_to_fp16"):
+            model.convert_to_fp16()
+        else:
+            model.half()
     model.to(device); model.eval()
 
     classifier, classifier_preprocess, _ = load_classifier(args.classifier_name)
     if args.classifier_use_fp16:
-        # Convert on CPU before moving to GPU to reduce peak memory.
-        classifier.convert_to_fp16()
+        # ConvNeXt doesn't implement convert_to_fp16(), so fall back to .half().
+        if hasattr(classifier, "convert_to_fp16"):
+            classifier.convert_to_fp16()
+        else:
+            classifier.half()
     classifier.to(device); classifier.eval()
 
     # Load Image
