@@ -28,6 +28,9 @@ def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight):
     Score = LogSumExp(Cats) - weight * LogSumExp(Dogs)
     """
     with th.no_grad():
+        # Keep input dtype aligned with classifier to avoid FP16/FP32 mismatch.
+        clf_dtype = next(classifier.parameters()).dtype
+        batch_images = batch_images.to(clf_dtype)
         logits = classifier(preprocess(batch_images))
         
         # Calculate Log-Probability of the Meta-Classes
