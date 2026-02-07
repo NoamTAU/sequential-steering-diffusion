@@ -19,9 +19,14 @@ from guided_diffusion.script_util import (
 )
 from guided_diffusion.torch_classifiers import load_classifier
 
+# --- IMAGE NET CLASS RANGES ---
+DOG_INDICES = list(range(151, 269))
+
 def get_best_proposal(classifier, preprocess, batch_images, orig_idx, target_idx, penalty_weight):
     with th.no_grad():
-        logits = classifier(preprocess(batch_images))
+        clf_dtype = next(classifier.parameters()).dtype
+        processed = preprocess(batch_images).to(clf_dtype)
+        logits = classifier(processed)
         
         target_logits = logits[:, target_idx]
         orig_logits = logits[:, orig_idx]
@@ -36,7 +41,26 @@ def get_best_proposal(classifier, preprocess, batch_images, orig_idx, target_idx
         best_prob_target = probs[best_idx, target_idx].item()
         best_prob_orig = probs[best_idx, orig_idx].item()
         
-        return scores, best_idx, best_score, best_prob_target, best_prob_orig
+        return scores, best_idx, best_score, best_prob_target, best_prob_orig, target_logits, orig_logits
+
+
+def select_auto_target_dog(classifier, preprocess, start_tensor, orig_idx, topk=5):
+    with th.no_grad():
+        clf_dtype = next(classifier.parameters()).dtype
+        logits = classifier(preprocess(start_tensor).to(clf_dtype))
+    dog_scores = logits[0, DOG_INDICES]
+    order = th.argsort(dog_scores, descending=True).tolist()
+    chosen = None
+    ranked = []
+    for i in order:
+        idx = DOG_INDICES[i]
+        score = dog_scores[i].item()
+        ranked.append((idx, score))
+        if chosen is None and idx != orig_idx:
+            chosen = idx
+    if chosen is None and ranked:
+        chosen = ranked[0][0]
+    return chosen, ranked[:topk]
 
 def run_steering_trajectory(args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, trajectory_dir):
     
@@ -49,15 +73,20 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     probs_target = []
     attempts_log = [] 
     force_history = []
+    force_history_target = []
+    force_history_orig = []
     
     # --- Step 0 ---
     with th.no_grad():
-        logits = classifier(classifier_preprocess(current_image))
+        clf_dtype = next(classifier.parameters()).dtype
+        logits = classifier(classifier_preprocess(current_image).to(clf_dtype))
         probs = th.nn.functional.softmax(logits, dim=1)
         
         target_logit = logits[0, args.target_class_idx]
         orig_logit = logits[0, args.orig_class_idx]
         current_score = (target_logit - args.penalty * orig_logit).item()
+        current_target = target_logit.item()
+        current_orig = orig_logit.item()
         
         p_o = probs[0, args.orig_class_idx].item()
         p_t = probs[0, args.target_class_idx].item()
@@ -114,7 +143,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     sample_img = out["sample"]
 
                 # 3. Evaluate Proposals
-                scores, best_idx, best_score, best_prob_t, best_prob_o = get_best_proposal(
+                scores, best_idx, best_score, best_prob_t, best_prob_o, target_logits, orig_logits = get_best_proposal(
                     classifier, classifier_preprocess, sample_img, 
                     args.orig_class_idx, args.target_class_idx, args.penalty
                 )
@@ -131,6 +160,12 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                 # Log these to a list 'force_history'
                 force_history.append([mean_force, std_force])
 
+                # Per-class force stats
+                target_deltas = target_logits - current_target
+                orig_deltas = orig_logits - current_orig
+                force_history_target.append([target_deltas.mean().item(), target_deltas.std().item()])
+                force_history_orig.append([orig_deltas.mean().item(), orig_deltas.std().item()])
+
                 
                 # 4. Check Acceptance Criteria
                 if best_score > current_score or retries == MAX_RETRIES - 1:
@@ -141,6 +176,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     
                     score_diff = best_score - current_score
                     current_score = best_score
+                    current_target = target_logits[best_idx].item()
+                    current_orig = orig_logits[best_idx].item()
                     
                     probs_orig.append(best_prob_o)
                     probs_target.append(best_prob_t)
@@ -168,7 +205,12 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     )
                     
                     # Save force history
-                    np.savez(os.path.join(trajectory_dir, "force_stats.npz"), force=np.array(force_history))
+                    np.savez(
+                        os.path.join(trajectory_dir, "force_stats.npz"),
+                        force=np.array(force_history),
+                        force_target=np.array(force_history_target),
+                        force_orig=np.array(force_history_orig),
+                    )
                 else:
                     retries += 1
 
@@ -184,7 +226,11 @@ def main():
 
     classifier, classifier_preprocess, _ = load_classifier(args.classifier_name)
     classifier.to(device); classifier.eval()
-    if args.classifier_use_fp16: classifier.convert_to_fp16()
+    if args.classifier_use_fp16:
+        if hasattr(classifier, "convert_to_fp16"):
+            classifier.convert_to_fp16()
+        else:
+            classifier.half()
 
     # Load Image
     diffusion_resize = Resize([args.image_size, args.image_size], Image.BICUBIC)
@@ -192,11 +238,42 @@ def main():
     start_tensor = th.tensor(np.array(start_pil)).float() / 127.5 - 1
     start_tensor = start_tensor.permute(2, 0, 1).unsqueeze(0).to(device)
 
+    auto_info = None
+    auto_message = None
+    if args.auto_target_dog:
+        if args.orig_class_idx not in DOG_INDICES:
+            print(f"[auto-target] orig_class_idx {args.orig_class_idx} not in DOG_INDICES. Still selecting top dog class.")
+        chosen_idx, topk = select_auto_target_dog(
+            classifier, classifier_preprocess, start_tensor, args.orig_class_idx, topk=args.auto_target_topk
+        )
+        if chosen_idx is not None:
+            msg = f"[auto-target] Selected target_class_idx={chosen_idx} (orig={args.orig_class_idx})"
+            print(msg)
+            args.target_class_idx = int(chosen_idx)
+            auto_info = {"orig_class_idx": int(args.orig_class_idx), "target_class_idx": int(chosen_idx), "topk": topk}
+            topk_str = ", ".join([f\"{idx}:{score:.3f}\" for idx, score in auto_info[\"topk\"]])
+            auto_message = f\"[auto-target] chosen={auto_info['target_class_idx']} topk={topk_str}\"
+            print(auto_message)
+        else:
+            print("[auto-target] Failed to select a target class; using provided target_class_idx.")
+
     # Output Dir
     base_name = os.path.splitext(os.path.basename(args.start_image_path))[0]
-    out_dir = os.path.join(args.output_dir, base_name, f"target_{args.target_class_idx}", f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}")
+    target_dir = f"target_{args.target_class_idx}"
+    if args.auto_target_dog:
+        target_dir = f"target_auto_{args.target_class_idx}"
+    out_dir = os.path.join(args.output_dir, base_name, target_dir, f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}")
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
+    if auto_info is not None:
+        try:
+            import json
+            with open(os.path.join(out_dir, "auto_target.json"), "w") as f:
+                json.dump(auto_info, f, indent=2)
+        except Exception:
+            pass
+    if auto_message is not None:
+        logger.log(auto_message)
 
     run_steering_trajectory(
         args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, out_dir
@@ -241,7 +318,9 @@ def create_argparser():
         num_head_channels=64,
         resblock_updown=True,
         use_new_attention_order=False,
-        classifier_use_fp16=False
+        classifier_use_fp16=False,
+        auto_target_dog=False,
+        auto_target_topk=5,
     ))
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
