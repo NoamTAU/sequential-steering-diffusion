@@ -251,8 +251,8 @@ def main():
             print(msg)
             args.target_class_idx = int(chosen_idx)
             auto_info = {"orig_class_idx": int(args.orig_class_idx), "target_class_idx": int(chosen_idx), "topk": topk}
-            topk_str = ", ".join([f\"{idx}:{score:.3f}\" for idx, score in auto_info[\"topk\"]])
-            auto_message = f\"[auto-target] chosen={auto_info['target_class_idx']} topk={topk_str}\"
+            topk_str = ", ".join([f"{idx}:{score:.3f}" for idx, score in auto_info["topk"]])
+            auto_message = f"[auto-target] chosen={auto_info['target_class_idx']} topk={topk_str}"
             print(auto_message)
         else:
             print("[auto-target] Failed to select a target class; using provided target_class_idx.")
