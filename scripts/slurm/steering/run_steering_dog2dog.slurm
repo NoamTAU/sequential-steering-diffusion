@@ -26,6 +26,7 @@ nvidia-smi
 # Config
 IMG="/work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG"
 OUT="/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1"
+TARGET_PROB_STOP=0.60
 
 # Run with logging enabled (auto-select target dog class)
 python scripts/steered_sequential_uturns_v4.py \
@@ -41,4 +42,7 @@ python scripts/steered_sequential_uturns_v4.py \
     --penalty 1.0 \
     --batch_size 64 \
     --max_retries 4 \
+    --require_target_increase True \
+    --target_prob_stop ${TARGET_PROB_STOP} \
+    --fail_behavior skip \
     --classifier_use_fp16 True

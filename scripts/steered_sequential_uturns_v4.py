@@ -90,6 +90,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         
         p_o = probs[0, args.orig_class_idx].item()
         p_t = probs[0, args.target_class_idx].item()
+        current_target_prob = p_t
+        current_orig_prob = p_o
     
     probs_orig.append(p_o)
     probs_target.append(p_t)
@@ -168,7 +170,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 
                 
                 # 4. Check Acceptance Criteria
-                if best_score > current_score or retries == MAX_RETRIES - 1:
+                score_ok = best_score > current_score
+                target_ok = (best_prob_t >= current_target_prob + args.target_prob_epsilon) if args.require_target_increase else True
+                accept_ok = score_ok and target_ok
+
+                if accept_ok:
                     step_accepted = True
                     
                     # Update State
@@ -178,6 +184,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     current_score = best_score
                     current_target = target_logits[best_idx].item()
                     current_orig = orig_logits[best_idx].item()
+                    current_target_prob = best_prob_t
+                    current_orig_prob = best_prob_o
                     
                     probs_orig.append(best_prob_o)
                     probs_target.append(best_prob_t)
@@ -185,7 +193,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     total_proposals = (retries + 1) * BATCH_SIZE
                     attempts_log.append(total_proposals)
 
-                    status = "ACCEPTED" if score_diff > 0 else "FORCED"
+                    status = "ACCEPTED"
                     
                     # Log to file/terminal
                     logger.log(f"Step {step}: {status} after {retries+1} batches. Score {best_score:.2f} (Delta {score_diff:.2e}) | Target P: {best_prob_t:.4f}")
@@ -213,6 +221,83 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     )
                 else:
                     retries += 1
+
+                # If we exhausted retries without acceptance, handle fail behavior
+                if (not step_accepted) and (retries >= MAX_RETRIES):
+                    # Stop early if we've reached target probability threshold
+                    if (args.target_prob_stop is not None) and (args.target_prob_stop >= 0) and (current_target_prob >= args.target_prob_stop):
+                        logger.log(
+                            f"Step {step}: STOP (target_prob {current_target_prob:.4f} >= {args.target_prob_stop:.4f})"
+                        )
+                        return
+
+                    if args.fail_behavior == "skip":
+                        # Keep current image; log a flat step
+                        total_proposals = retries * BATCH_SIZE
+                        attempts_log.append(total_proposals)
+                        probs_orig.append(current_orig_prob)
+                        probs_target.append(current_target_prob)
+                        status = "SKIP"
+                        logger.log(
+                            f"Step {step}: {status} after {retries} batches. Score {current_score:.2f} | Target P: {current_target_prob:.4f}"
+                        )
+
+                        # Save image (unchanged) to preserve step count
+                        img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
+                        Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
+
+                        np.savez(
+                            os.path.join(trajectory_dir, "steering_data.npz"),
+                            probs_orig=np.array(probs_orig),
+                            probs_target=np.array(probs_target),
+                            attempts=np.array(attempts_log)
+                        )
+                        np.savez(
+                            os.path.join(trajectory_dir, "force_stats.npz"),
+                            force=np.array(force_history),
+                            force_target=np.array(force_history_target),
+                            force_orig=np.array(force_history_orig),
+                        )
+                        step_accepted = True
+                    elif args.fail_behavior == "force":
+                        # Force accept best candidate (may violate monotonic target prob)
+                        step_accepted = True
+                        current_image = sample_img[best_idx].unsqueeze(0)
+                        score_diff = best_score - current_score
+                        current_score = best_score
+                        current_target = target_logits[best_idx].item()
+                        current_orig = orig_logits[best_idx].item()
+                        current_target_prob = best_prob_t
+                        current_orig_prob = best_prob_o
+
+                        probs_orig.append(best_prob_o)
+                        probs_target.append(best_prob_t)
+                        attempts_log.append(retries * BATCH_SIZE)
+
+                        status = "FORCED"
+                        logger.log(
+                            f"Step {step}: {status} after {retries} batches. Score {best_score:.2f} (Delta {score_diff:.2e}) | Target P: {best_prob_t:.4f}"
+                        )
+
+                        img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
+                        Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
+
+                        np.savez(
+                            os.path.join(trajectory_dir, "steering_data.npz"),
+                            probs_orig=np.array(probs_orig),
+                            probs_target=np.array(probs_target),
+                            attempts=np.array(attempts_log)
+                        )
+                        np.savez(
+                            os.path.join(trajectory_dir, "force_stats.npz"),
+                            force=np.array(force_history),
+                            force_target=np.array(force_history_target),
+                            force_orig=np.array(force_history_orig),
+                        )
+                    else:
+                        # stop
+                        logger.log(f"Step {step}: STOP (no acceptable candidate after {retries} batches)")
+                        return
 
 def main():
     args = create_argparser().parse_args()
@@ -321,6 +406,10 @@ def create_argparser():
         classifier_use_fp16=False,
         auto_target_dog=False,
         auto_target_topk=5,
+        require_target_increase=False,
+        target_prob_epsilon=1e-4,
+        target_prob_stop=-1.0,
+        fail_behavior="force",  # force | skip | stop
     ))
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
