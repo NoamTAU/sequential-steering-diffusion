@@ -71,6 +71,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     # History
     probs_orig = []
     probs_target = []
+    logits_orig = []
+    logits_target = []
+    scores_log = []
     attempts_log = [] 
     force_history = []
     force_history_target = []
@@ -95,6 +98,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     
     probs_orig.append(p_o)
     probs_target.append(p_t)
+    logits_orig.append(current_orig)
+    logits_target.append(current_target)
+    scores_log.append(current_score)
     attempts_log.append(0)
 
     img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
@@ -104,6 +110,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         os.path.join(trajectory_dir, "steering_data.npz"),
         probs_orig=np.array(probs_orig),
         probs_target=np.array(probs_target),
+        logits_orig=np.array(logits_orig),
+        logits_target=np.array(logits_target),
+        scores=np.array(scores_log),
         attempts=np.array(attempts_log)
     )
     
@@ -189,6 +198,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     
                     probs_orig.append(best_prob_o)
                     probs_target.append(best_prob_t)
+                    logits_orig.append(current_orig)
+                    logits_target.append(current_target)
+                    scores_log.append(current_score)
                     
                     total_proposals = (retries + 1) * BATCH_SIZE
                     attempts_log.append(total_proposals)
@@ -196,10 +208,20 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     status = "ACCEPTED"
                     
                     # Log to file/terminal
-                    logger.log(f"Step {step}: {status} after {retries+1} batches. Score {best_score:.2f} (Delta {score_diff:.2e}) | Target P: {best_prob_t:.4f}")
+                    logger.log(
+                        f"Step {step}: {status} after {retries+1} batches. "
+                        f"Score {best_score:.2f} (Delta {score_diff:.2e}) | "
+                        f"Target P: {best_prob_t:.4f} | Orig P: {best_prob_o:.4f} | "
+                        f"Target Logit: {current_target:.2f} | Orig Logit: {current_orig:.2f}"
+                    )
                     
                     # Update Progress Bar Description with latest stats
-                    progress_bar.set_postfix({"Target P": f"{best_prob_t:.4f}", "Status": status})
+                    progress_bar.set_postfix({
+                        "TargetP": f"{best_prob_t:.3f}",
+                        "OrigP": f"{best_prob_o:.3f}",
+                        "Score": f"{current_score:.2f}",
+                        "Status": status,
+                    })
                     
                     # Save Image
                     img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
@@ -209,6 +231,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         os.path.join(trajectory_dir, "steering_data.npz"),
                         probs_orig=np.array(probs_orig),
                         probs_target=np.array(probs_target),
+                        logits_orig=np.array(logits_orig),
+                        logits_target=np.array(logits_target),
+                        scores=np.array(scores_log),
                         attempts=np.array(attempts_log)
                     )
                     
@@ -237,10 +262,22 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         attempts_log.append(total_proposals)
                         probs_orig.append(current_orig_prob)
                         probs_target.append(current_target_prob)
+                        logits_orig.append(current_orig)
+                        logits_target.append(current_target)
+                        scores_log.append(current_score)
                         status = "SKIP"
                         logger.log(
-                            f"Step {step}: {status} after {retries} batches. Score {current_score:.2f} | Target P: {current_target_prob:.4f}"
+                            f"Step {step}: {status} after {retries} batches. "
+                            f"Score {current_score:.2f} | Target P: {current_target_prob:.4f} | "
+                            f"Orig P: {current_orig_prob:.4f} | "
+                            f"Target Logit: {current_target:.2f} | Orig Logit: {current_orig:.2f}"
                         )
+                        progress_bar.set_postfix({
+                            "TargetP": f"{current_target_prob:.3f}",
+                            "OrigP": f"{current_orig_prob:.3f}",
+                            "Score": f"{current_score:.2f}",
+                            "Status": status,
+                        })
 
                         # Save image (unchanged) to preserve step count
                         img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
@@ -250,6 +287,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             os.path.join(trajectory_dir, "steering_data.npz"),
                             probs_orig=np.array(probs_orig),
                             probs_target=np.array(probs_target),
+                            logits_orig=np.array(logits_orig),
+                            logits_target=np.array(logits_target),
+                            scores=np.array(scores_log),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
@@ -272,12 +312,24 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 
                         probs_orig.append(best_prob_o)
                         probs_target.append(best_prob_t)
+                        logits_orig.append(current_orig)
+                        logits_target.append(current_target)
+                        scores_log.append(current_score)
                         attempts_log.append(retries * BATCH_SIZE)
 
                         status = "FORCED"
                         logger.log(
-                            f"Step {step}: {status} after {retries} batches. Score {best_score:.2f} (Delta {score_diff:.2e}) | Target P: {best_prob_t:.4f}"
+                            f"Step {step}: {status} after {retries} batches. "
+                            f"Score {best_score:.2f} (Delta {score_diff:.2e}) | "
+                            f"Target P: {best_prob_t:.4f} | Orig P: {best_prob_o:.4f} | "
+                            f"Target Logit: {current_target:.2f} | Orig Logit: {current_orig:.2f}"
                         )
+                        progress_bar.set_postfix({
+                            "TargetP": f"{best_prob_t:.3f}",
+                            "OrigP": f"{best_prob_o:.3f}",
+                            "Score": f"{current_score:.2f}",
+                            "Status": status,
+                        })
 
                         img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
                         Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
@@ -286,6 +338,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             os.path.join(trajectory_dir, "steering_data.npz"),
                             probs_orig=np.array(probs_orig),
                             probs_target=np.array(probs_target),
+                            logits_orig=np.array(logits_orig),
+                            logits_target=np.array(logits_target),
+                            scores=np.array(scores_log),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
