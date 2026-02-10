@@ -5,6 +5,7 @@ import numpy as np
 import torch as th
 from PIL import Image
 from torchvision.transforms import Normalize, Resize
+from tqdm.auto import tqdm
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_root)
@@ -61,6 +62,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     # History
     probs_dog = []
     probs_cat = []
+    scores_log = []
+    cat_scores_log = []
+    dog_scores_log = []
     attempts_log = [] 
     force_history = [] # [mean, std] per batch (combined score)
     force_history_cat = [] # [mean, std] per batch (cat score delta)
@@ -74,9 +78,14 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
     current_score = best_score # Initialize current score
     current_cat = cat_score0[0].item()
     current_dog = dog_score0[0].item()
+    current_cat_prob = p_cat
+    current_dog_prob = p_dog
     
     probs_dog.append(p_dog)
     probs_cat.append(p_cat)
+    scores_log.append(current_score)
+    cat_scores_log.append(current_cat)
+    dog_scores_log.append(current_dog)
     attempts_log.append(0)
 
     img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
@@ -87,13 +96,17 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         os.path.join(trajectory_dir, "steering_data.npz"),
         probs_dog=np.array(probs_dog),
         probs_cat=np.array(probs_cat),
+        scores=np.array(scores_log),
+        cat_scores=np.array(cat_scores_log),
+        dog_scores=np.array(dog_scores_log),
         attempts=np.array(attempts_log)
     )
     
     logger.log(f"Starting Meta-Steering. Noise: {args.noise_step}. Penalty: {args.penalty}")
 
     with th.no_grad():
-        for step in range(1, args.num_steps + 1):
+        progress_bar = tqdm(range(1, args.num_steps + 1), desc="Steering Progress", unit="step")
+        for step in progress_bar:
             
             step_accepted = False
             retries = 0
@@ -135,7 +148,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                 force_history_dog.append([dog_deltas.mean().item(), dog_deltas.std().item()])
                 
                 # 4. Acceptance Logic
-                if best_score > current_score or retries == MAX_RETRIES - 1:
+                score_ok = best_score > current_score
+                target_ok = (best_p_cat >= current_cat_prob + args.target_prob_epsilon) if args.require_target_increase else True
+                accept_ok = score_ok and target_ok
+
+                if accept_ok:
                     step_accepted = True
                     current_image = sample_img[best_idx].unsqueeze(0)
                     
@@ -143,13 +160,29 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     current_score = best_score
                     current_cat = cat_scores[best_idx].item()
                     current_dog = dog_scores[best_idx].item()
+                    current_cat_prob = best_p_cat
+                    current_dog_prob = best_p_dog
                     
                     probs_dog.append(best_p_dog)
                     probs_cat.append(best_p_cat)
+                    scores_log.append(current_score)
+                    cat_scores_log.append(current_cat)
+                    dog_scores_log.append(current_dog)
                     attempts_log.append((retries + 1) * BATCH_SIZE)
 
-                    status = "ACCEPTED" if score_diff > 0 else "FORCED"
-                    logger.log(f"Step {step}: {status} ({retries+1}). Score {best_score:.2f} (Force: {mean_force:.3f})")
+                    status = "ACCEPTED"
+                    logger.log(
+                        f"Step {step}: {status} ({retries+1}). "
+                        f"Score {best_score:.2f} (Force: {mean_force:.3f}) | "
+                        f"Cat P: {best_p_cat:.4f} | Dog P: {best_p_dog:.4f} | "
+                        f"Cat Score: {current_cat:.2f} | Dog Score: {current_dog:.2f}"
+                    )
+                    progress_bar.set_postfix({
+                        "CatP": f"{best_p_cat:.3f}",
+                        "DogP": f"{best_p_dog:.3f}",
+                        "Score": f"{current_score:.2f}",
+                        "Status": status,
+                    })
                     
                     img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
                     Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
@@ -158,6 +191,9 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         os.path.join(trajectory_dir, "steering_data.npz"),
                         probs_dog=np.array(probs_dog),
                         probs_cat=np.array(probs_cat),
+                        scores=np.array(scores_log),
+                        cat_scores=np.array(cat_scores_log),
+                        dog_scores=np.array(dog_scores_log),
                         attempts=np.array(attempts_log)
                     )
                     
@@ -170,6 +206,107 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     )
                 else:
                     retries += 1
+
+                # If we exhausted retries without acceptance, handle fail behavior
+                if (not step_accepted) and (retries >= MAX_RETRIES):
+                    # Stop early if we've reached target probability threshold
+                    if (args.target_prob_stop is not None) and (args.target_prob_stop >= 0) and (current_cat_prob >= args.target_prob_stop):
+                        logger.log(
+                            f"Step {step}: STOP (cat_prob {current_cat_prob:.4f} >= {args.target_prob_stop:.4f})"
+                        )
+                        return
+
+                    if args.fail_behavior == "skip":
+                        # Keep current image; log a flat step
+                        attempts_log.append(retries * BATCH_SIZE)
+                        probs_dog.append(current_dog_prob)
+                        probs_cat.append(current_cat_prob)
+                        scores_log.append(current_score)
+                        cat_scores_log.append(current_cat)
+                        dog_scores_log.append(current_dog)
+                        status = "SKIP"
+                        logger.log(
+                            f"Step {step}: {status} after {retries} batches. "
+                            f"Score {current_score:.2f} | Cat P: {current_cat_prob:.4f} | Dog P: {current_dog_prob:.4f}"
+                        )
+                        progress_bar.set_postfix({
+                            "CatP": f"{current_cat_prob:.3f}",
+                            "DogP": f"{current_dog_prob:.3f}",
+                            "Score": f"{current_score:.2f}",
+                            "Status": status,
+                        })
+
+                        img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
+                        Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
+
+                        np.savez(
+                            os.path.join(trajectory_dir, "steering_data.npz"),
+                            probs_dog=np.array(probs_dog),
+                            probs_cat=np.array(probs_cat),
+                            scores=np.array(scores_log),
+                            cat_scores=np.array(cat_scores_log),
+                            dog_scores=np.array(dog_scores_log),
+                            attempts=np.array(attempts_log)
+                        )
+                        np.savez(
+                            os.path.join(trajectory_dir, "force_stats.npz"),
+                            force=np.array(force_history),
+                            force_cat=np.array(force_history_cat),
+                            force_dog=np.array(force_history_dog),
+                        )
+                        step_accepted = True
+                    elif args.fail_behavior == "force":
+                        # Force accept best candidate (may violate monotonic target prob)
+                        step_accepted = True
+                        current_image = sample_img[best_idx].unsqueeze(0)
+                        score_diff = best_score - current_score
+                        current_score = best_score
+                        current_cat = cat_scores[best_idx].item()
+                        current_dog = dog_scores[best_idx].item()
+                        current_cat_prob = best_p_cat
+                        current_dog_prob = best_p_dog
+
+                        probs_dog.append(best_p_dog)
+                        probs_cat.append(best_p_cat)
+                        scores_log.append(current_score)
+                        cat_scores_log.append(current_cat)
+                        dog_scores_log.append(current_dog)
+                        attempts_log.append(retries * BATCH_SIZE)
+
+                        status = "FORCED"
+                        logger.log(
+                            f"Step {step}: {status} ({retries}). "
+                            f"Score {best_score:.2f} (Force: {mean_force:.3f}) | "
+                            f"Cat P: {best_p_cat:.4f} | Dog P: {best_p_dog:.4f}"
+                        )
+                        progress_bar.set_postfix({
+                            "CatP": f"{best_p_cat:.3f}",
+                            "DogP": f"{best_p_dog:.3f}",
+                            "Score": f"{current_score:.2f}",
+                            "Status": status,
+                        })
+
+                        img_save = ((current_image[0] + 1) * 127.5).clamp(0, 255).to(th.uint8).permute(1, 2, 0).cpu().numpy()
+                        Image.fromarray(img_save).save(os.path.join(trajectory_dir, f"step_{step:03d}.jpeg"))
+
+                        np.savez(
+                            os.path.join(trajectory_dir, "steering_data.npz"),
+                            probs_dog=np.array(probs_dog),
+                            probs_cat=np.array(probs_cat),
+                            scores=np.array(scores_log),
+                            cat_scores=np.array(cat_scores_log),
+                            dog_scores=np.array(dog_scores_log),
+                            attempts=np.array(attempts_log)
+                        )
+                        np.savez(
+                            os.path.join(trajectory_dir, "force_stats.npz"),
+                            force=np.array(force_history),
+                            force_cat=np.array(force_history_cat),
+                            force_dog=np.array(force_history_dog),
+                        )
+                    else:
+                        logger.log(f"Step {step}: STOP (no acceptable candidate after {retries} batches)")
+                        return
 
 def main():
     args = create_argparser().parse_args()
@@ -266,7 +403,11 @@ def create_argparser():
         num_head_channels=64,
         resblock_updown=True,
         use_new_attention_order=False,
-        classifier_use_fp16=False
+        classifier_use_fp16=False,
+        require_target_increase=False,
+        target_prob_epsilon=1e-4,
+        target_prob_stop=-1.0,
+        fail_behavior="force",  # force | skip | stop
     ))
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
