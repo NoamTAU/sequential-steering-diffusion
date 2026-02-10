@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 import numpy as np
 import torch as th
 from PIL import Image
@@ -402,7 +403,15 @@ def main():
     target_dir = f"target_{args.target_class_idx}"
     if args.auto_target_dog:
         target_dir = f"target_auto_{args.target_class_idx}"
-    out_dir = os.path.join(args.output_dir, base_name, target_dir, f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}")
+    run_tag = args.run_tag.strip() if getattr(args, "run_tag", None) else ""
+    if not run_tag:
+        run_tag = time.strftime("%Y%m%d-%H%M%S")
+    out_dir = os.path.join(
+        args.output_dir,
+        base_name,
+        target_dir,
+        f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}_run{run_tag}",
+    )
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
     if auto_info is not None:
@@ -423,7 +432,8 @@ def create_argparser():
     defaults = model_and_diffusion_defaults()
     defaults.update(dict(
         start_image_path="", 
-        output_dir="results/steering_experiments_v4", 
+        output_dir="results/steering_experiments_v4",
+        run_tag="",
         num_steps=50,       
         noise_step=100,      
         orig_class_idx=0,   

@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 import numpy as np
 import torch as th
 from PIL import Image
@@ -362,7 +363,15 @@ def main():
 
     # Output Dir
     base_name = os.path.splitext(os.path.basename(args.start_image_path))[0]
-    out_dir = os.path.join(args.output_dir, base_name, f"meta_cat", f"noise_{args.noise_step}_p{args.penalty}")
+    run_tag = args.run_tag.strip() if getattr(args, "run_tag", None) else ""
+    if not run_tag:
+        run_tag = time.strftime("%Y%m%d-%H%M%S")
+    out_dir = os.path.join(
+        args.output_dir,
+        base_name,
+        "meta_cat",
+        f"noise_{args.noise_step}_p{args.penalty}_run{run_tag}",
+    )
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
 
@@ -374,7 +383,8 @@ def create_argparser():
     defaults = model_and_diffusion_defaults()
     defaults.update(dict(
         start_image_path="", 
-        output_dir="results/steering_experiments_meta", 
+        output_dir="results/steering_experiments_meta",
+        run_tag="",
         num_steps=50,       
         noise_step=100,      
         penalty=1.0,        
