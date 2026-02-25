@@ -101,3 +101,18 @@ Decide which experiment we want to run first:
   - Loads steering meta-cat trajectory (`steering_meta_v2`) and unguided sequential trajectory.
   - Computes ConvNeXt layer cosine similarity vs step 0 (guided vs unguided) and plots a grid.
   - Plots dog/cat meta-class probability mass over steps for guided vs unguided.
+- Session update (2026-02-25):
+  - Steering updates:
+    - Added probability-only steering modes (`target_prob` for dog→dog and `cat_prob` for meta-cat) and made the output directory include `score_<mode>`.
+    - `steering_data.npz` now records `score_mode` so analyses can distinguish logits vs probability steering.
+    - Added Slurm jobs for probability-only steering: `run_steering_dog2dog_prob.slurm`, `run_steering_meta_catprob.slurm`.
+  - Plotting notebook updates:
+    - Dog→dog guided run auto-select now chooses the most recent run by mtime (prefers `steering_data.npz` timestamp).
+    - Added transition highlighting to probability-mass plots and montages (first step where target >= orig).
+    - Added toggles to control montage suptitles vs per-frame `t=` labels:
+      - `MONTAGE_SHOW_TITLES` (suptitle on/off)
+      - `MONTAGE_SHOW_FRAME_LABELS` (per-frame `t=` labels)
+      - `PLOT_SHOW_TITLES` and `HIGHLIGHT_TRANSITION` for probability-mass plots
+    - Fixed unguided plot length mismatch by trimming to `u_len = min(len(xu), len(unguided_probs_*))`.
+  - Ops / status:
+    - Latest `origin/main` includes the above notebook fixes; when updating on HPC, prefer `git checkout origin/main -- notebooks/plot_generation_sequential.ipynb` if stash/rebase conflicts arise.

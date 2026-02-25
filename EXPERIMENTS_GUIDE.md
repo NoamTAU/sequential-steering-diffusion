@@ -341,6 +341,16 @@ Tip: run `python scripts/<name>.py --help` to see full flags.
   - Susceptibility, C2(t), latent cosine vs normalized U-turns, guided vs unguided comparisons, force/potential plots.
   - Uses SSH paths under `/work/pcsl/Noam/...`.
   - Saves figures and exports to `notebooks/_exports`.
+  - Recent additions (2026-02-25):
+    - Transition highlight: marks the first step where target >= orig (dog→dog) or cat >= dog (meta).
+    - Montages:
+      - `MONTAGE_SHOW_TITLES` toggles montage suptitle.
+      - `MONTAGE_SHOW_FRAME_LABELS` keeps per-frame `t=` labels even when titles are off.
+    - Probability-mass plots:
+      - `PLOT_SHOW_TITLES` toggles plot titles.
+      - `HIGHLIGHT_TRANSITION` toggles vertical marker + point at the transition step.
+      - Unguided curves now trim to `u_len = min(len(xu), len(unguided_probs_*))` to avoid x/y mismatch errors.
+    - Dog→dog guided run auto-select now picks the most recent run by mtime (prefers `steering_data.npz`).
 
 - `notebooks/trajectories_visualization_sequential.ipynb`
   - Original sequential U-turn analysis notebook (covariance, steering, force definition).
