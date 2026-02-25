@@ -23,7 +23,9 @@ from guided_diffusion.torch_classifiers import load_classifier
 # --- IMAGE NET CLASS RANGES ---
 DOG_INDICES = list(range(151, 269))
 
-def get_best_proposal(classifier, preprocess, batch_images, orig_idx, target_idx, penalty_weight):
+SCORE_MODES = {"logit_diff", "target_prob", "target_logit"}
+
+def get_best_proposal(classifier, preprocess, batch_images, orig_idx, target_idx, penalty_weight, score_mode):
     with th.no_grad():
         clf_dtype = next(classifier.parameters()).dtype
         processed = preprocess(batch_images).to(clf_dtype)
@@ -31,16 +33,27 @@ def get_best_proposal(classifier, preprocess, batch_images, orig_idx, target_idx
         
         target_logits = logits[:, target_idx]
         orig_logits = logits[:, orig_idx]
-        
-        # We want Target High AND Original Low
-        scores = target_logits - (penalty_weight * orig_logits)
+        probs = th.nn.functional.softmax(logits, dim=1)
+        target_probs = probs[:, target_idx]
+        orig_probs = probs[:, orig_idx]
+
+        if score_mode == "logit_diff":
+            # We want Target High AND Original Low
+            scores = target_logits - (penalty_weight * orig_logits)
+        elif score_mode == "target_prob":
+            # Pure target probability steering
+            scores = target_probs
+        elif score_mode == "target_logit":
+            # Pure target logit steering
+            scores = target_logits
+        else:
+            raise ValueError(f"Unknown score_mode: {score_mode}")
         
         best_idx = th.argmax(scores).item()
         best_score = scores[best_idx].item()
         
-        probs = th.nn.functional.softmax(logits, dim=1)
-        best_prob_target = probs[best_idx, target_idx].item()
-        best_prob_orig = probs[best_idx, orig_idx].item()
+        best_prob_target = target_probs[best_idx].item()
+        best_prob_orig = orig_probs[best_idx].item()
         
         return scores, best_idx, best_score, best_prob_target, best_prob_orig, target_logits, orig_logits
 
@@ -88,7 +101,14 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         
         target_logit = logits[0, args.target_class_idx]
         orig_logit = logits[0, args.orig_class_idx]
-        current_score = (target_logit - args.penalty * orig_logit).item()
+        if args.score_mode == "logit_diff":
+            current_score = (target_logit - args.penalty * orig_logit).item()
+        elif args.score_mode == "target_prob":
+            current_score = probs[0, args.target_class_idx].item()
+        elif args.score_mode == "target_logit":
+            current_score = target_logit.item()
+        else:
+            raise ValueError(f"Unknown score_mode: {args.score_mode}")
         current_target = target_logit.item()
         current_orig = orig_logit.item()
         
@@ -114,10 +134,16 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         logits_orig=np.array(logits_orig),
         logits_target=np.array(logits_target),
         scores=np.array(scores_log),
+        score_mode=np.array([args.score_mode]),
         attempts=np.array(attempts_log)
     )
     
-    logger.log(f"Starting Steering. Batch: {BATCH_SIZE}. Retries: {MAX_RETRIES}. Noise: {args.noise_step}. Penalty: {args.penalty}")
+    logger.log(
+        f"Starting Steering. Batch: {BATCH_SIZE}. Retries: {MAX_RETRIES}. "
+        f"Noise: {args.noise_step}. Penalty: {args.penalty}. Score: {args.score_mode}"
+    )
+    if args.score_mode != "logit_diff" and args.penalty != 0:
+        logger.log(f"Note: penalty is ignored for score_mode={args.score_mode}.")
 
     with th.no_grad():
         # --- NEW: Outer Progress Bar for Steering Steps ---
@@ -157,7 +183,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                 # 3. Evaluate Proposals
                 scores, best_idx, best_score, best_prob_t, best_prob_o, target_logits, orig_logits = get_best_proposal(
                     classifier, classifier_preprocess, sample_img, 
-                    args.orig_class_idx, args.target_class_idx, args.penalty
+                    args.orig_class_idx, args.target_class_idx, args.penalty, args.score_mode
                 )
                 
                 # Calculate Force Statistics
@@ -217,10 +243,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                     )
                     
                     # Update Progress Bar Description with latest stats
+                    score_fmt = f"{current_score:.3f}" if args.score_mode == "target_prob" else f"{current_score:.2f}"
                     progress_bar.set_postfix({
                         "TargetP": f"{best_prob_t:.3f}",
                         "OrigP": f"{best_prob_o:.3f}",
-                        "Score": f"{current_score:.2f}",
+                        "Score": score_fmt,
                         "Status": status,
                     })
                     
@@ -235,6 +262,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         logits_orig=np.array(logits_orig),
                         logits_target=np.array(logits_target),
                         scores=np.array(scores_log),
+                        score_mode=np.array([args.score_mode]),
                         attempts=np.array(attempts_log)
                     )
                     
@@ -273,10 +301,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             f"Orig P: {current_orig_prob:.4f} | "
                             f"Target Logit: {current_target:.2f} | Orig Logit: {current_orig:.2f}"
                         )
+                        score_fmt = f"{current_score:.3f}" if args.score_mode == "target_prob" else f"{current_score:.2f}"
                         progress_bar.set_postfix({
                             "TargetP": f"{current_target_prob:.3f}",
                             "OrigP": f"{current_orig_prob:.3f}",
-                            "Score": f"{current_score:.2f}",
+                            "Score": score_fmt,
                             "Status": status,
                         })
 
@@ -291,6 +320,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             logits_orig=np.array(logits_orig),
                             logits_target=np.array(logits_target),
                             scores=np.array(scores_log),
+                            score_mode=np.array([args.score_mode]),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
@@ -325,10 +355,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             f"Target P: {best_prob_t:.4f} | Orig P: {best_prob_o:.4f} | "
                             f"Target Logit: {current_target:.2f} | Orig Logit: {current_orig:.2f}"
                         )
+                        score_fmt = f"{current_score:.3f}" if args.score_mode == "target_prob" else f"{current_score:.2f}"
                         progress_bar.set_postfix({
                             "TargetP": f"{best_prob_t:.3f}",
                             "OrigP": f"{best_prob_o:.3f}",
-                            "Score": f"{current_score:.2f}",
+                            "Score": score_fmt,
                             "Status": status,
                         })
 
@@ -342,6 +373,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             logits_orig=np.array(logits_orig),
                             logits_target=np.array(logits_target),
                             scores=np.array(scores_log),
+                            score_mode=np.array([args.score_mode]),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
@@ -410,7 +442,7 @@ def main():
         args.output_dir,
         base_name,
         target_dir,
-        f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}_run{run_tag}",
+        f"noise_{args.noise_step}_p{args.penalty}_b{args.batch_size}_r{args.max_retries}_score_{args.score_mode}_run{run_tag}",
     )
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
@@ -438,7 +470,8 @@ def create_argparser():
         noise_step=100,      
         orig_class_idx=0,   
         target_class_idx=0, 
-        penalty=1.0,        
+        penalty=1.0,
+        score_mode="logit_diff",  # logit_diff | target_prob | target_logit
         
         # --- NEW ARGUMENTS ---
         batch_size=16,

@@ -24,10 +24,15 @@ from guided_diffusion.torch_classifiers import load_classifier
 DOG_INDICES = list(range(151, 269)) 
 CAT_INDICES = list(range(281, 286))
 
-def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight):
+SCORE_MODES = {"logsumexp_diff", "cat_prob", "cat_logsumexp"}
+
+def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight, score_mode):
     """
     Returns scores for the ENTIRE batch to calculate force statistics.
-    Score = LogSumExp(Cats) - weight * LogSumExp(Dogs)
+    score_mode:
+      - logsumexp_diff: LogSumExp(Cats) - weight * LogSumExp(Dogs)
+      - cat_prob: sum of softmax probs over cat classes
+      - cat_logsumexp: LogSumExp(Cats) only
     """
     with th.no_grad():
         # Keep input dtype aligned with classifier to avoid FP16/FP32 mismatch.
@@ -40,17 +45,27 @@ def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight):
         cat_score = th.logsumexp(logits[:, CAT_INDICES], dim=1)
         dog_score = th.logsumexp(logits[:, DOG_INDICES], dim=1)
         
+        probs = th.nn.functional.softmax(logits, dim=1)
+        cat_prob = probs[:, CAT_INDICES].sum(dim=1)
+        dog_prob = probs[:, DOG_INDICES].sum(dim=1)
+
         # Score for every image in the batch
-        scores = cat_score - (penalty_weight * dog_score)
+        if score_mode == "logsumexp_diff":
+            scores = cat_score - (penalty_weight * dog_score)
+        elif score_mode == "cat_prob":
+            scores = cat_prob
+        elif score_mode == "cat_logsumexp":
+            scores = cat_score
+        else:
+            raise ValueError(f"Unknown score_mode: {score_mode}")
         
         # Find best for steering
         best_idx = th.argmax(scores).item()
         best_score = scores[best_idx].item()
         
         # Calculate probs for logging
-        probs = th.nn.functional.softmax(logits, dim=1)
-        total_cat_prob = probs[best_idx, CAT_INDICES].sum().item()
-        total_dog_prob = probs[best_idx, DOG_INDICES].sum().item()
+        total_cat_prob = cat_prob[best_idx].item()
+        total_dog_prob = dog_prob[best_idx].item()
         
         return scores, best_idx, best_score, total_cat_prob, total_dog_prob, cat_score, dog_score
 
@@ -73,7 +88,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 
     # --- Step 0 ---
     scores_0, best_idx, best_score, p_cat, p_dog, cat_score0, dog_score0 = get_meta_score_full(
-        classifier, classifier_preprocess, current_image, args.penalty
+        classifier, classifier_preprocess, current_image, args.penalty, args.score_mode
     )
     
     current_score = best_score # Initialize current score
@@ -100,10 +115,16 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
         scores=np.array(scores_log),
         cat_scores=np.array(cat_scores_log),
         dog_scores=np.array(dog_scores_log),
+        score_mode=np.array([args.score_mode]),
         attempts=np.array(attempts_log)
     )
     
-    logger.log(f"Starting Meta-Steering. Noise: {args.noise_step}. Penalty: {args.penalty}")
+    logger.log(
+        f"Starting Meta-Steering. Noise: {args.noise_step}. Penalty: {args.penalty}. "
+        f"Score: {args.score_mode}"
+    )
+    if args.score_mode != "logsumexp_diff" and args.penalty != 0:
+        logger.log(f"Note: penalty is ignored for score_mode={args.score_mode}.")
 
     with th.no_grad():
         progress_bar = tqdm(range(1, args.num_steps + 1), desc="Steering Progress", unit="step")
@@ -130,7 +151,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                 
                 # 3. Evaluate Meta-Proposals (Get Full Batch Scores)
                 batch_scores, best_idx, best_score, best_p_cat, best_p_dog, cat_scores, dog_scores = get_meta_score_full(
-                    classifier, classifier_preprocess, sample_img, args.penalty
+                    classifier, classifier_preprocess, sample_img, args.penalty, args.score_mode
                 )
                 
                 # --- FORCE CALCULATION ---
@@ -178,10 +199,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         f"Cat P: {best_p_cat:.4f} | Dog P: {best_p_dog:.4f} | "
                         f"Cat Score: {current_cat:.2f} | Dog Score: {current_dog:.2f}"
                     )
+                    score_fmt = f"{current_score:.3f}" if args.score_mode == "cat_prob" else f"{current_score:.2f}"
                     progress_bar.set_postfix({
                         "CatP": f"{best_p_cat:.3f}",
                         "DogP": f"{best_p_dog:.3f}",
-                        "Score": f"{current_score:.2f}",
+                        "Score": score_fmt,
                         "Status": status,
                     })
                     
@@ -195,6 +217,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                         scores=np.array(scores_log),
                         cat_scores=np.array(cat_scores_log),
                         dog_scores=np.array(dog_scores_log),
+                        score_mode=np.array([args.score_mode]),
                         attempts=np.array(attempts_log)
                     )
                     
@@ -230,10 +253,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             f"Step {step}: {status} after {retries} batches. "
                             f"Score {current_score:.2f} | Cat P: {current_cat_prob:.4f} | Dog P: {current_dog_prob:.4f}"
                         )
+                        score_fmt = f"{current_score:.3f}" if args.score_mode == "cat_prob" else f"{current_score:.2f}"
                         progress_bar.set_postfix({
                             "CatP": f"{current_cat_prob:.3f}",
                             "DogP": f"{current_dog_prob:.3f}",
-                            "Score": f"{current_score:.2f}",
+                            "Score": score_fmt,
                             "Status": status,
                         })
 
@@ -247,6 +271,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             scores=np.array(scores_log),
                             cat_scores=np.array(cat_scores_log),
                             dog_scores=np.array(dog_scores_log),
+                            score_mode=np.array([args.score_mode]),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
@@ -280,10 +305,11 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             f"Score {best_score:.2f} (Force: {mean_force:.3f}) | "
                             f"Cat P: {best_p_cat:.4f} | Dog P: {best_p_dog:.4f}"
                         )
+                        score_fmt = f"{current_score:.3f}" if args.score_mode == "cat_prob" else f"{current_score:.2f}"
                         progress_bar.set_postfix({
                             "CatP": f"{best_p_cat:.3f}",
                             "DogP": f"{best_p_dog:.3f}",
-                            "Score": f"{current_score:.2f}",
+                            "Score": score_fmt,
                             "Status": status,
                         })
 
@@ -297,6 +323,7 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
                             scores=np.array(scores_log),
                             cat_scores=np.array(cat_scores_log),
                             dog_scores=np.array(dog_scores_log),
+                            score_mode=np.array([args.score_mode]),
                             attempts=np.array(attempts_log)
                         )
                         np.savez(
@@ -370,7 +397,7 @@ def main():
         args.output_dir,
         base_name,
         "meta_cat",
-        f"noise_{args.noise_step}_p{args.penalty}_run{run_tag}",
+        f"noise_{args.noise_step}_p{args.penalty}_score_{args.score_mode}_run{run_tag}",
     )
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
@@ -387,7 +414,8 @@ def create_argparser():
         run_tag="",
         num_steps=50,       
         noise_step=100,      
-        penalty=1.0,        
+        penalty=1.0,
+        score_mode="logsumexp_diff",  # logsumexp_diff | cat_prob | cat_logsumexp
         batch_size=16,
         max_retries=10,
         classifier_name="convnext_base",

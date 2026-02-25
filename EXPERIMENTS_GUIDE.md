@@ -90,6 +90,21 @@ python scripts/steered_sequential_uturns_v4.py \
   --max_retries 4
 ```
 
+**Target-probability steering (no dog-vs-cat penalty):**
+```bash
+python scripts/steered_sequential_uturns_v4.py \
+  --start_image_path /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
+  --output_dir /work/pcsl/Noam/sequential_diffusion/results/steering_force_analysis \
+  --orig_class_idx 249 \
+  --target_class_idx 281 \
+  --num_steps 30 \
+  --noise_step 100 \
+  --timestep_respacing 250 \
+  --score_mode target_prob \
+  --batch_size 64 \
+  --max_retries 4
+```
+
 **Auto-select a target dog class (dog→dog):**
 ```bash
 python scripts/steered_sequential_uturns_v4.py \
@@ -107,6 +122,23 @@ python scripts/steered_sequential_uturns_v4.py \
   --max_retries 4
 ```
 
+**Dog→dog with target-probability steering:**
+```bash
+python scripts/steered_sequential_uturns_v4.py \
+  --start_image_path /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
+  --output_dir /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1 \
+  --orig_class_idx 249 \
+  --target_class_idx 0 \
+  --auto_target_dog True \
+  --auto_target_topk 5 \
+  --num_steps 50 \
+  --noise_step 100 \
+  --timestep_respacing 250 \
+  --score_mode target_prob \
+  --batch_size 64 \
+  --max_retries 4
+```
+
 **Meta-class steering (Dogs vs Cats):** `scripts/steered_sequential_uturns_meta.py`
 - Scores: `logsumexp(cats) - penalty * logsumexp(dogs)`
 
@@ -118,6 +150,18 @@ python scripts/steered_sequential_uturns_meta.py \
   --num_steps 50 \
   --noise_step 100 \
   --penalty 1.0 \
+  --batch_size 64 \
+  --max_retries 4
+```
+
+**Meta-class with cat probability only (no dog penalty):**
+```bash
+python scripts/steered_sequential_uturns_meta.py \
+  --start_image_path /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
+  --output_dir /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2 \
+  --num_steps 50 \
+  --noise_step 100 \
+  --score_mode cat_prob \
   --batch_size 64 \
   --max_retries 4
 ```
@@ -174,9 +218,17 @@ These are ready-to-run job files. Edit the parameter block at the top as needed.
   - Meta steering (dog↔cat) using `steered_sequential_uturns_meta.py`.
   - `sbatch scripts/slurm/steering/run_steering_meta.slurm`
 
+- `scripts/slurm/steering/run_steering_meta_catprob.slurm`
+  - Meta steering using cat probability only (no dog penalty).
+  - `sbatch scripts/slurm/steering/run_steering_meta_catprob.slurm`
+
 - `scripts/slurm/steering/run_steering_dog2dog.slurm`
   - Auto-selected dog→dog steering using `steered_sequential_uturns_v4.py`.
   - `sbatch scripts/slurm/steering/run_steering_dog2dog.slurm`
+
+- `scripts/slurm/steering/run_steering_dog2dog_prob.slurm`
+  - Dog→dog steering using target probability only.
+  - `sbatch scripts/slurm/steering/run_steering_dog2dog_prob.slurm`
 
 - `scripts/slurm/manifold/run_manifold_probe.slurm`
   - Unguided probe with full logits.
