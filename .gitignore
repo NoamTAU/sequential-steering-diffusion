@@ -6,6 +6,9 @@ __pycache__/
 notebooks/_exports/
 notebooks/notebooks/_exports/
 
+# --- Nested Paper Repo (Overleaf Sync) ---
+-ICML2026-MC_diffusion/
+
 # --- Large Data Files (Global Ignore) ---
 *.npz
 *.pt

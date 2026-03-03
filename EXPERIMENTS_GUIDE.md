@@ -27,11 +27,41 @@ bash sync_repo.sh "Your commit message"
 ```
 This script will `git pull --rebase`, auto-stash if dirty, then commit and push.
 
+### Paper / Overleaf Repo (Nested Git Repo)
+This code repo contains a nested git repo used for the paper and Overleaf sync:
+- Paper repo path: `-ICML2026-MC_diffusion/`
+- Overleaf remote is named `overleaf` and uses branch `master`.
+- Local branch is typically `main` and should be pushed to `overleaf/master`.
+
+Typical workflow:
+```bash
+cd -ICML2026-MC_diffusion
+git pull --rebase overleaf master
+git push overleaf main:master
+```
+If the push is rejected, it usually means Overleaf has new commits; always pull/rebase first.
+
 **Download plots from SSH:**
 ```bash
 bash download_plots.sh nlevi@pcsl ~/Downloads/seq_plots
 ```
 This copies from `/work/pcsl/Noam/sequential_diffusion/results/plots` via `rsync` or `scp`.
+
+### SSH Update + Notebook Merge Conflicts (Practical Notes)
+On the cluster we often update the repo using:
+```bash
+bash update_with_ipynb.sh
+```
+This stashes local notebook edits, pulls, and then pops the stash back.
+
+If `notebooks/plot_generation_sequential.ipynb` conflicts during pull/rebase:
+- If you *don’t* care about the cluster-side notebook edits: keep the remote version.
+```bash
+git checkout origin/main -- notebooks/plot_generation_sequential.ipynb
+git add notebooks/plot_generation_sequential.ipynb
+git rebase --continue  # only if you are mid-rebase
+```
+- If you *do* care about the notebook edits: resolve in Jupyter (or via `nbdime` if installed), then `git add` and continue.
 
 ## 2) Core Generation: Sequential U-turns (Unguided)
 
@@ -351,6 +381,12 @@ Tip: run `python scripts/<name>.py --help` to see full flags.
       - `HIGHLIGHT_TRANSITION` toggles vertical marker + point at the transition step.
       - Unguided curves now trim to `u_len = min(len(xu), len(unguided_probs_*))` to avoid x/y mismatch errors.
     - Dog→dog guided run auto-select now picks the most recent run by mtime (prefers `steering_data.npz`).
+  - Plot styling note (Matplotlib):
+    - Setting only `plt.rcParams["font.size"]` is often not enough if titles/ticks/legends have explicit sizes.
+    - For consistently larger text in saved PDFs, also set:
+      - `axes.titlesize`, `axes.labelsize`
+      - `xtick.labelsize`, `ytick.labelsize`
+      - `legend.fontsize`
 
 - `notebooks/trajectories_visualization_sequential.ipynb`
   - Original sequential U-turn analysis notebook (covariance, steering, force definition).

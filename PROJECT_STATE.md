@@ -19,12 +19,15 @@ This repo is a fork of OpenAI’s guided-diffusion codebase, extended to study *
 - `scripts/steered_sequential_uturns_v4.py`  
   Steering with a classifier (ConvNeXt). At each step:
   - Generate a batch of U‑turn proposals.
-  - Score each as: `target_logit − penalty * orig_logit`.
+  - Score each proposal via `--score_mode`:
+    - `target_minus_penalty_orig_logit` (default): `target_logit − penalty * orig_logit`
+    - `target_prob`: maximize the target class probability `P(target)` (no explicit penalty term)
   - Accept the best; retry up to `max_retries` to find improvement.
   - Saves images + `steering_data.npz` + `force_stats.npz`.
 
 - `scripts/steered_sequential_uturns_meta.py`  
   “Meta‑class” steering (e.g., **cats vs dogs**): score uses log‑sum‑exp over class groups.
+  - Also supports `--score_mode cat_prob` to directly maximize meta-class probability mass `P(cat)` (no explicit dog penalty).
 
 - `scripts/probe_manifold.py`  
   Runs unsteered U‑turns and logs **full classifier logits at every step** to probe the semantic manifold.
@@ -66,6 +69,9 @@ output_dir/<image_name>/target_<class>/noise_<t>_p<penalty>_b<batch>_r<retries>/
   steering_data.npz
   force_stats.npz
 ```
+Notes:
+- Newer steering runs include `score_<mode>` in the run directory name.
+- `steering_data.npz` records `score_mode` so downstream plots can distinguish logits- vs probability-based steering.
 
 ## HPC / Slurm Assumptions
 Slurm scripts in `scripts/` run on an H100 partition and assume a conda env `llm_physics`. They reference paths like `/work/pcsl/Noam/...`. These need updating for local runs.
@@ -74,6 +80,7 @@ Slurm scripts in `scripts/` run on an H100 partition and assume a conda env `llm
 - Several scripts call `diffusion.p_sample_loop_forw_back`, but that function **is not present** in `guided_diffusion/gaussian_diffusion.py`. The revised U‑turn script avoids this by manually looping.
 - Many hardcoded paths point to HPC locations; adapt when running locally.
 - `README.md` is still the vanilla guided‑diffusion README (not specific to sequential steering).
+- When updating on HPC, `.ipynb` merges can conflict easily. If you don’t intend to keep local notebook edits on the cluster, the simplest resolution is to discard local notebook changes and check out the remote version (see `EXPERIMENTS_GUIDE.md` for the exact commands we use).
 
 ## Next Step When Resuming
 Decide which experiment we want to run first:
