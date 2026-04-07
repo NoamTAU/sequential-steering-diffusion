@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import scipy.io as sio
 import torch as th
 from PIL import Image
 from torchvision.transforms import Resize
@@ -23,11 +24,25 @@ def read_image_list(path):
         return [line.strip() for line in f if line.strip()]
 
 
-def read_ground_truth(path):
+def build_ilsvrc_to_classifier_index(ground_truth_path):
+    meta_path = Path(ground_truth_path).with_name("meta.mat")
+    if not meta_path.exists():
+        raise FileNotFoundError(f"Missing meta.mat next to ground truth file: {meta_path}")
+
+    meta = sio.loadmat(meta_path, squeeze_me=True)["synsets"]
+    nums_children = list(zip(*meta))[4]
+    meta = [meta[idx] for idx, num_children in enumerate(nums_children) if num_children == 0]
+    idcs, wnids = list(zip(*meta))[:2]
+    wnids = list(wnids)
+    classifier_wnids = sorted(wnids)
+    wnid_to_classifier_idx = {wnid: idx for idx, wnid in enumerate(classifier_wnids)}
+    return {int(idc): wnid_to_classifier_idx[wnid] for idc, wnid in zip(idcs, wnids)}
+
+
+def read_ground_truth(path, ilsvrc_to_classifier_idx):
     with open(path, "r") as f:
         labels = [int(line.strip()) for line in f if line.strip()]
-    # Standard ILSVRC2012 validation labels are 1-based.
-    return [label - 1 for label in labels]
+    return [ilsvrc_to_classifier_idx[label] for label in labels]
 
 
 def classify_image(classifier, preprocess, device, image_path, image_size):
@@ -62,8 +77,7 @@ def write_csv(rows, csv_path):
 def write_dog_list(rows, out_path):
     with open(out_path, "w") as f:
         for row in rows:
-            if row["is_top1_dog"]:
-                f.write(row["image_path"] + "\n")
+            f.write(row["image_path"] + "\n")
 
 
 def main():
@@ -94,7 +108,8 @@ def main():
     image_paths = read_image_list(args.image_list)
     gt_labels = None
     if args.ground_truth_file:
-        gt_labels = read_ground_truth(args.ground_truth_file)
+        ilsvrc_to_classifier_idx = build_ilsvrc_to_classifier_index(args.ground_truth_file)
+        gt_labels = read_ground_truth(args.ground_truth_file, ilsvrc_to_classifier_idx)
         if len(gt_labels) != len(image_paths):
             raise ValueError(
                 f"Ground-truth label count ({len(gt_labels)}) does not match image list length ({len(image_paths)})."
