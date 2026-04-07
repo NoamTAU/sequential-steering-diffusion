@@ -197,6 +197,7 @@ Decide which experiment we want to run first:
   - Added safe multi-image Slurm array jobs:
     - `scripts/slurm/steering/run_steering_meta_catprob_multi.slurm`
     - `scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm`
+  - Added `scripts/build_image_list.py` so the cluster workflow can start from the full `ILSVRC2012_val` directory rather than the old curated 50-image subset.
   - Added `scripts/build_dog_image_list.py` to classify the master image list and write a dog-only subset plus a CSV summary of top-1 classes.
   - Added `scripts/slurm/steering/submit_multi_image_steering.sh` so the exact Slurm array size is computed from the dog-only image list and a requested repeat count.
   - The multi-image steering workflow is now designed to run repeated steering trajectories per image, not just one run per image.

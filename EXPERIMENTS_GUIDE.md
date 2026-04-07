@@ -220,16 +220,29 @@ python scripts/steered_sequential_uturns_meta.py \
   --target_prob_stop 0.9
 ```
 
-**Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
-- Slurm array over `scripts/image_list.txt`
-- Intended to run over `scripts/dog_image_list.txt` after filtering the master image list
+**Build a master image list first:**
+- `scripts/image_list.txt` is only the existing curated 50-image subset under `selected_images`
+- for a real multi-image steering study, build a list from the full ImageNet validation directory on the cluster
+```bash
+python scripts/build_image_list.py \
+  --image-dir /path/to/ILSVRC2012_val \
+  --out scripts/imagenet_val_image_list.txt \
+  --pattern '*.JPEG'
+```
+
+**Then build the dog-only list from that master list:**
 ```bash
 python scripts/build_dog_image_list.py \
-  --image-list scripts/image_list.txt \
+  --image-list scripts/imagenet_val_image_list.txt \
   --dog-list-out scripts/dog_image_list.txt \
   --summary-csv-out scripts/dog_image_summary.csv \
   --classifier-use-fp16
 ```
+
+This tells you how many relevant dog-start images you actually have in the full validation set.
+
+**Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
+- Slurm array over the filtered `scripts/dog_image_list.txt`
 
 **Multi-image within-class steering (dog$\rightarrow$dog, probability only):**
 - Original class is auto-detected from the classifier top-1 prediction
@@ -257,6 +270,7 @@ python scripts/summarize_steering_runs.py \
 
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
+- it will prefer `scripts/imagenet_val_image_list.txt` when present and otherwise fall back to `scripts/image_list.txt`
 - it will build the dog-only image list if missing
 - it will reuse existing run-summary CSVs when present
 - otherwise it rebuilds them from the saved steering runs before plotting
