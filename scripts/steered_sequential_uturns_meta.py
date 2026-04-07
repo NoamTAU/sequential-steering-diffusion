@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+import json
 import numpy as np
 import torch as th
 from PIL import Image
@@ -25,6 +26,16 @@ DOG_INDICES = list(range(151, 269))
 CAT_INDICES = list(range(281, 286))
 
 SCORE_MODES = {"logsumexp_diff", "cat_prob", "cat_logsumexp"}
+
+def classify_start_image(classifier, preprocess, start_tensor):
+    with th.no_grad():
+        clf_dtype = next(classifier.parameters()).dtype
+        processed = preprocess(start_tensor).to(clf_dtype)
+        logits = classifier(processed)
+        probs = th.nn.functional.softmax(logits, dim=1)
+    top1_idx = int(th.argmax(logits, dim=1).item())
+    top1_prob = float(probs[0, top1_idx].item())
+    return top1_idx, top1_prob
 
 def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight, score_mode):
     """
@@ -387,6 +398,18 @@ def main():
     start_pil = diffusion_resize(Image.open(args.start_image_path).convert("RGB"))
     start_tensor = th.tensor(np.array(start_pil)).float() / 127.5 - 1
     start_tensor = start_tensor.permute(2, 0, 1).unsqueeze(0).to(device)
+    top1_idx, top1_prob = classify_start_image(classifier, classifier_preprocess, start_tensor)
+    start_info = {
+        "top1_class_idx": int(top1_idx),
+        "top1_prob": float(top1_prob),
+        "is_top1_dog": bool(top1_idx in DOG_INDICES),
+    }
+    if args.require_top1_dog and top1_idx not in DOG_INDICES:
+        print(
+            f"[skip] top1 class {top1_idx} is not a dog class; "
+            "skipping dog-to-cat meta steering run."
+        )
+        return
 
     # Output Dir
     base_name = os.path.splitext(os.path.basename(args.start_image_path))[0]
@@ -401,6 +424,11 @@ def main():
     )
     os.makedirs(out_dir, exist_ok=True)
     logger.configure(dir=out_dir)
+    try:
+        with open(os.path.join(out_dir, "start_image_info.json"), "w") as f:
+            json.dump(start_info, f, indent=2)
+    except Exception:
+        pass
 
     run_steering_trajectory(
         args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, out_dir
@@ -442,6 +470,7 @@ def create_argparser():
         resblock_updown=True,
         use_new_attention_order=False,
         classifier_use_fp16=False,
+        require_top1_dog=False,
         require_target_increase=False,
         target_prob_epsilon=1e-4,
         target_prob_stop=-1.0,

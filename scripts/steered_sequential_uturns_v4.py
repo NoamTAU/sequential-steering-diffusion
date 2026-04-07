@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+import json
 import numpy as np
 import torch as th
 from PIL import Image
@@ -75,6 +76,15 @@ def select_auto_target_dog(classifier, preprocess, start_tensor, orig_idx, topk=
     if chosen is None and ranked:
         chosen = ranked[0][0]
     return chosen, ranked[:topk]
+
+def classify_start_image(classifier, preprocess, start_tensor):
+    with th.no_grad():
+        clf_dtype = next(classifier.parameters()).dtype
+        logits = classifier(preprocess(start_tensor).to(clf_dtype))
+        probs = th.nn.functional.softmax(logits, dim=1)
+    top1_idx = int(th.argmax(logits, dim=1).item())
+    top1_prob = float(probs[0, top1_idx].item())
+    return top1_idx, top1_prob, logits, probs
 
 def run_steering_trajectory(args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, trajectory_dir):
     
@@ -413,6 +423,25 @@ def main():
 
     auto_info = None
     auto_message = None
+    top1_idx, top1_prob, _, _ = classify_start_image(classifier, classifier_preprocess, start_tensor)
+    start_info = {
+        "top1_class_idx": int(top1_idx),
+        "top1_prob": float(top1_prob),
+        "is_top1_dog": bool(top1_idx in DOG_INDICES),
+    }
+
+    if args.auto_orig_class:
+        args.orig_class_idx = int(top1_idx)
+        auto_message = f"[auto-orig] selected orig_class_idx={args.orig_class_idx} top1_prob={top1_prob:.4f}"
+        print(auto_message)
+
+    if args.require_orig_in_dog_indices and args.orig_class_idx not in DOG_INDICES:
+        print(
+            f"[skip] orig_class_idx {args.orig_class_idx} is not a dog class; "
+            "skipping dog-to-dog steering run."
+        )
+        return
+
     if args.auto_target_dog:
         if args.orig_class_idx not in DOG_INDICES:
             print(f"[auto-target] orig_class_idx {args.orig_class_idx} not in DOG_INDICES. Still selecting top dog class.")
@@ -448,11 +477,15 @@ def main():
     logger.configure(dir=out_dir)
     if auto_info is not None:
         try:
-            import json
             with open(os.path.join(out_dir, "auto_target.json"), "w") as f:
                 json.dump(auto_info, f, indent=2)
         except Exception:
             pass
+    try:
+        with open(os.path.join(out_dir, "start_image_info.json"), "w") as f:
+            json.dump(start_info, f, indent=2)
+    except Exception:
+        pass
     if auto_message is not None:
         logger.log(auto_message)
 
@@ -502,6 +535,8 @@ def create_argparser():
         resblock_updown=True,
         use_new_attention_order=False,
         classifier_use_fp16=False,
+        auto_orig_class=False,
+        require_orig_in_dog_indices=False,
         auto_target_dog=False,
         auto_target_topk=5,
         require_target_increase=False,

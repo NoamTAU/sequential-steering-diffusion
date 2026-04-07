@@ -47,3 +47,6 @@ models/*
 # --- Datasets Directory ---
 datasets/*
 !datasets/.gitkeep
+
+# Local session notes (Codex; keep untracked)
+notes/

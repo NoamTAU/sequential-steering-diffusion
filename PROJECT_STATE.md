@@ -123,3 +123,87 @@ Decide which experiment we want to run first:
     - Fixed unguided plot length mismatch by trimming to `u_len = min(len(xu), len(unguided_probs_*))`.
   - Ops / status:
     - Latest `origin/main` includes the above notebook fixes; when updating on HPC, prefer `git checkout origin/main -- notebooks/plot_generation_sequential.ipynb` if stash/rebase conflicts arise.
+
+- Session update (2026-03-05):
+  - Paper drafting (Overleaf nested repo):
+    - Updated `-ICML2026-MC_diffusion/NeurIPS2026/main_noam.tex` Images + Conclusion to match the “define once, then reference” style:
+      - Images section now explicitly documents probability-only steering (monotone target-probability acceptance, batching, retries, skip behavior, and respacing) and contrasts dog→cat vs dog→dog with the same steering rule.
+      - Removed force-specific language from the Images section (figures remain probability/montage only).
+    - Reminder: the local sandbox cannot `git fetch/pull` from Overleaf, so keep syncing via the normal Overleaf workflow on your machine.
+
+- Session update (2026-03-08):
+  - Overleaf ops:
+    - Overleaf web UI comments are not stored in Git (won’t appear locally after `git pull`).
+    - Documented a recovery for a common Overleaf Git error:
+      - `cannot lock ref 'refs/remotes/overleaf/master' ... expected ...`
+      - Fix: remove stale lock files, force-refresh `refs/remotes/overleaf/master`, then fast-forward.
+  - Paper drafting:
+    - Cleaned up duplicated Language-observable definitions in `-ICML2026-MC_diffusion/NeurIPS2026/main_noam.tex` to preserve “define once, reference later” coherence.
+
+- Session update (2026-04-07):
+  - Overleaf sync:
+    - Pulled the nested paper repo successfully from `overleaf/master`.
+    - The paper repo is now aligned with `overleaf/master`.
+  - Draft layout change:
+    - `NeurIPS2026/main_noam.tex` was removed in the pulled Overleaf version.
+    - The apparent active source file is now `-ICML2026-MC_diffusion/NeurIPS2026/main_tracked_1.tex`.
+    - The earlier NeurIPS draft tree was moved into `-ICML2026-MC_diffusion/old_main/`.
+    - `main_noam.pdf` still exists as a build artifact, but it is no longer the source of truth.
+  - Current paper shape:
+    - title: `Sampling and Steering Data with Chains of U-turns in Diffusion Models`
+    - main sections: formalism, RHM theory, language, images, conclusion, then appendices
+    - the current draft is heavily tracked/edited inline, with `\ins{}` and `\del{}` macros active
+    - there is still at least one visible inline review note in the body (`MW: For all figures, x-y axis must be specified...`) and several tracked-change blocks in appendix captions, so this is a working review draft rather than a clean submission file
+  - Current figure set in the draft now includes the new cartoon panels:
+    - `figs/cartoon_mc_sampling.png`
+    - `figs/cartoon_mc_steering.png`
+    - `figs/cartoon_mc_percolation.png`
+    - plus updated language/image plots such as `love_sadness_scores.png` and `latent_cosine_norm_uturns_...`
+
+- Session update (2026-04-07, post-meeting):
+  - Overall assessment from the meeting:
+    - the paper is interesting but currently reads as exploratory and synthetic rather than as a single sharp breakthrough
+    - the weak points are steering evidence, especially in images, and the current draft length/clarity
+  - Main scientific risks identified:
+    - image steering needs statistics, not just illustrative examples
+    - text steering must show that the steered paragraphs remain sensible and not overly corrupted
+    - the paper must better isolate what is genuinely new relative to prior single-U-turn work
+  - Drafting / writing decisions:
+    - reduce the paper toward a 9-page main version with a cleaner appendix
+    - streamline section 3 and other long passages, but verify any Claude/ChatGPT edits for factual correctness
+    - treat the current tracked draft as working material, not near-final copy
+  - Language-observable corrections requested:
+    - review Claude-introduced text for factual inaccuracies, especially around the semantic vs syntactic framing
+    - rephrase claims around token survival probability, word embeddings, and document embeddings so they do not overstate semantic/syntactic distinctions
+    - if necessary, remove the semantic vs syntactic labeling where it is not technically defensible
+  - Figure changes requested:
+    - revert Figure 4A to cumulative, non-incremental tree edit distance
+    - update the text to acknowledge that the layer-3 vs layer-4 distinction cannot presently be resolved cleanly
+    - improve captions so each panel explicitly says what is shown on each axis and what each subpanel represents
+    - likely remove or revise the last panel of Figure 1, which was judged confusing
+  - Steering presentation changes requested:
+    - include text examples in the main paper, not just the appendix
+    - choose moderate steering examples where the text remains coherent and in-distribution
+    - replace offensive or inappropriate text examples
+    - if time permits, explore text steering setups that better parallel the image case, such as similar vs opposite sentiments
+  - Novelty framing requested:
+    - make the contribution relative to previous single-U-turn results more precise
+    - emphasize the sequence-level generalization and the new observables, especially for text
+  - Immediate action priority:
+    - get to a working Friday version with sharper novelty framing, shorter prose, fixed Figure 1 / Figure 4 presentation, and better steering evidence
+
+- Session update (2026-04-07, image-section follow-up):
+  - Decided to upgrade image steering from single-image evidence to multi-image evaluation.
+  - Added safe multi-image Slurm array jobs:
+    - `scripts/slurm/steering/run_steering_meta_catprob_multi.slurm`
+    - `scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm`
+  - These array jobs iterate over `scripts/image_list.txt`, but skip non-dog start images automatically so the dog→cat and dog→dog comparisons stay well-defined.
+  - Added start-image auto-classification support to the steering scripts:
+    - dog→dog can now auto-detect the original class and then auto-select a different dog target
+    - dog→cat meta steering can now require the start image top-1 class to be a dog, otherwise skip
+  - Added `scripts/summarize_steering_runs.py` to aggregate saved `steering_data.npz` files into CSV summaries with:
+    - crossing status and first crossing step
+    - final / max target probability
+    - total attempts
+    - start-image class metadata
+  - This should make it possible to plot image-steering statistics across images instead of relying only on the single husky example.

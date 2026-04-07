@@ -32,6 +32,8 @@ This code repo contains a nested git repo used for the paper and Overleaf sync:
 - Paper repo path: `-ICML2026-MC_diffusion/`
 - Overleaf remote is named `overleaf` and uses branch `master`.
 - Local branch is typically `main` and should be pushed to `overleaf/master`.
+- As of the latest sync, the active paper source is `NeurIPS2026/main_tracked_1.tex`.
+- The older `NeurIPS2026/main_noam.tex` source was removed upstream and the previous draft tree now lives under `old_main/`.
 
 Typical workflow:
 ```bash
@@ -40,6 +42,21 @@ git pull --rebase overleaf master
 git push overleaf main:master
 ```
 If the push is rejected, it usually means Overleaf has new commits; always pull/rebase first.
+
+### Overleaf UI Comments
+Overleaf web UI comments are **not** stored in the Git repo, so they will not appear locally after `git pull`. Only literal `.tex` content (including comment text written into the files) is versioned.
+
+### Fix: `cannot lock ref 'refs/remotes/overleaf/master' ... expected ...`
+Sometimes `git pull --rebase overleaf master` fails while updating the remote-tracking ref, e.g.
+`error: cannot lock ref 'refs/remotes/overleaf/master': is at <sha> but expected <sha>`.
+
+This is usually a stale lock file or an interrupted Git operation. In the Overleaf repo root:
+```bash
+rm -f .git/refs/remotes/overleaf/master.lock .git/packed-refs.lock
+git fetch overleaf +master:refs/remotes/overleaf/master
+git merge --ff-only overleaf/master
+```
+After that, `git pull --rebase overleaf master` should work again.
 
 **Download plots from SSH:**
 ```bash
@@ -132,7 +149,9 @@ python scripts/steered_sequential_uturns_v4.py \
   --timestep_respacing 250 \
   --score_mode target_prob \
   --batch_size 64 \
-  --max_retries 4
+  --max_retries 4 \
+  --require_target_increase True \
+  --fail_behavior skip
 ```
 
 **Auto-select a target dog class (dog→dog):**
@@ -166,7 +185,9 @@ python scripts/steered_sequential_uturns_v4.py \
   --timestep_respacing 250 \
   --score_mode target_prob \
   --batch_size 64 \
-  --max_retries 4
+  --max_retries 4 \
+  --require_target_increase True \
+  --fail_behavior skip
 ```
 
 **Meta-class steering (Dogs vs Cats):** `scripts/steered_sequential_uturns_meta.py`
@@ -193,7 +214,36 @@ python scripts/steered_sequential_uturns_meta.py \
   --noise_step 100 \
   --score_mode cat_prob \
   --batch_size 64 \
-  --max_retries 4
+  --max_retries 4 \
+  --require_target_increase True \
+  --fail_behavior skip \
+  --target_prob_stop 0.9
+```
+
+**Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
+- Slurm array over `scripts/image_list.txt`
+- Non-dog start images are skipped automatically based on the classifier top-1 class
+```bash
+sbatch scripts/slurm/steering/run_steering_meta_catprob_multi.slurm
+```
+
+**Multi-image within-class steering (dog$\rightarrow$dog, probability only):**
+- Slurm array over `scripts/image_list.txt`
+- Original class is auto-detected from the classifier top-1 prediction
+- Non-dog start images are skipped automatically
+```bash
+sbatch scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm
+```
+
+**Aggregate steering runs for notebook analysis:**
+```bash
+python scripts/summarize_steering_runs.py \
+  --root /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi \
+  --out-csv /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi/steering_summary.csv
+
+python scripts/summarize_steering_runs.py \
+  --root /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi \
+  --out-csv /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv
 ```
 
 ## 4) Manifold Probe (Unguided + Full Logits)
