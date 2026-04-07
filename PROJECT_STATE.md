@@ -207,3 +207,11 @@ Decide which experiment we want to run first:
     - total attempts
     - start-image class metadata
   - This should make it possible to plot image-steering statistics across images instead of relying only on the single husky example.
+  - Added a new section to `notebooks/plot_generation_sequential.ipynb`:
+    - `## Multi-image Steering Statistics (Paper-Ready)`
+    - it checks for aggregated CSV summaries, rebuilds them via `scripts/summarize_steering_runs.py` if needed, keeps the latest run per image, and generates a 2x2 paper-facing summary plot
+    - current metrics plotted:
+      - crossing rate
+      - first crossing step among successful images
+      - maximum target probability reached
+      - total proposal attempts

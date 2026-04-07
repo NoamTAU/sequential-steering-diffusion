@@ -246,6 +246,11 @@ python scripts/summarize_steering_runs.py \
   --out-csv /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv
 ```
 
+The plotting notebook now contains a dedicated section for these multi-image summaries:
+- `## Multi-image Steering Statistics (Paper-Ready)`
+- it will reuse existing CSV summaries when present
+- otherwise it rebuilds them from the saved steering runs before plotting
+
 ## 4) Manifold Probe (Unguided + Full Logits)
 
 **Script:** `scripts/probe_manifold.py`
