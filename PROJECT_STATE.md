@@ -197,7 +197,9 @@ Decide which experiment we want to run first:
   - Added safe multi-image Slurm array jobs:
     - `scripts/slurm/steering/run_steering_meta_catprob_multi.slurm`
     - `scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm`
-  - These array jobs iterate over `scripts/image_list.txt`, but skip non-dog start images automatically so the dog→cat and dog→dog comparisons stay well-defined.
+  - Added `scripts/build_dog_image_list.py` to classify the master image list and write a dog-only subset plus a CSV summary of top-1 classes.
+  - Added `scripts/slurm/steering/submit_multi_image_steering.sh` so the exact Slurm array size is computed from the dog-only image list and a requested repeat count.
+  - The multi-image steering workflow is now designed to run repeated steering trajectories per image, not just one run per image.
   - Added start-image auto-classification support to the steering scripts:
     - dog→dog can now auto-detect the original class and then auto-select a different dog target
     - dog→cat meta steering can now require the start image top-1 class to be a dog, otherwise skip
@@ -209,9 +211,11 @@ Decide which experiment we want to run first:
   - This should make it possible to plot image-steering statistics across images instead of relying only on the single husky example.
   - Added a new section to `notebooks/plot_generation_sequential.ipynb`:
     - `## Multi-image Steering Statistics (Paper-Ready)`
-    - it checks for aggregated CSV summaries, rebuilds them via `scripts/summarize_steering_runs.py` if needed, keeps the latest run per image, and generates a 2x2 paper-facing summary plot
+    - it checks for a dog-only image list and aggregated run CSVs, rebuilding them if needed
+    - it first aggregates within image across repeated steering trajectories
+    - it then aggregates across images for the final comparison
     - current metrics plotted:
-      - crossing rate
-      - first crossing step among successful images
-      - maximum target probability reached
-      - total proposal attempts
+      - crossing rate per image
+      - first crossing step per image
+      - maximum target probability per image
+      - total proposal attempts per image

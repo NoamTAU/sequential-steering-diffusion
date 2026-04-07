@@ -222,18 +222,27 @@ python scripts/steered_sequential_uturns_meta.py \
 
 **Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
 - Slurm array over `scripts/image_list.txt`
-- Non-dog start images are skipped automatically based on the classifier top-1 class
+- Intended to run over `scripts/dog_image_list.txt` after filtering the master image list
 ```bash
-sbatch scripts/slurm/steering/run_steering_meta_catprob_multi.slurm
+python scripts/build_dog_image_list.py \
+  --image-list scripts/image_list.txt \
+  --dog-list-out scripts/dog_image_list.txt \
+  --summary-csv-out scripts/dog_image_summary.csv \
+  --classifier-use-fp16
 ```
 
 **Multi-image within-class steering (dog$\rightarrow$dog, probability only):**
-- Slurm array over `scripts/image_list.txt`
 - Original class is auto-detected from the classifier top-1 prediction
-- Non-dog start images are skipped automatically
+- The repeated-trajectory multi-image jobs are submitted together with:
 ```bash
-sbatch scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm
+bash scripts/slurm/steering/submit_multi_image_steering.sh scripts/dog_image_list.txt 5
 ```
+
+This submit helper:
+- counts the relevant dog-start images in `scripts/dog_image_list.txt`
+- sets the exact Slurm array size
+- launches both `dog$\rightarrow$cat` and `dog$\rightarrow$dog` jobs
+- uses `REPEATS=5` in the example above, meaning 5 steering trajectories per image per regime
 
 **Aggregate steering runs for notebook analysis:**
 ```bash
@@ -248,8 +257,12 @@ python scripts/summarize_steering_runs.py \
 
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
-- it will reuse existing CSV summaries when present
+- it will build the dog-only image list if missing
+- it will reuse existing run-summary CSVs when present
 - otherwise it rebuilds them from the saved steering runs before plotting
+- it aggregates in two stages:
+  - within each image across repeated steering trajectories
+  - then across images for the final comparison
 
 ## 4) Manifold Probe (Unguided + Full Logits)
 

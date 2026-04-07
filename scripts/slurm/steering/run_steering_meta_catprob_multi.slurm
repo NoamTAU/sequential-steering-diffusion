@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=steer_meta_catprob_multi
-#SBATCH --array=0-49
 #SBATCH --output=slurm_logs/steer_meta_catprob_multi_%A_%a.out
 #SBATCH --error=slurm_logs/steer_meta_catprob_multi_%A_%a.err
 #SBATCH --nodes=1
@@ -17,17 +16,23 @@ conda activate llm_physics
 
 mkdir -p slurm_logs
 
-IMAGE_LIST_FILE="scripts/image_list.txt"
-IMG=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$IMAGE_LIST_FILE")
+IMAGE_LIST_FILE="${IMAGE_LIST_FILE:-scripts/dog_image_list.txt}"
+REPEATS="${REPEATS:-1}"
+TASK_ID="${SLURM_ARRAY_TASK_ID:-0}"
+IMAGE_INDEX=$((TASK_ID / REPEATS))
+REPEAT_INDEX=$((TASK_ID % REPEATS))
+IMG=$(sed -n "$((IMAGE_INDEX + 1))p" "$IMAGE_LIST_FILE")
 OUT="/work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi"
 TARGET_PROB_STOP=0.90
-RUN_TAG="${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+RUN_TAG="${SLURM_JOB_ID}_${TASK_ID}_rep${REPEAT_INDEX}"
 
-echo "Job Array ID: $SLURM_ARRAY_TASK_ID"
+echo "Job Array ID: $TASK_ID"
+echo "Image Index: $IMAGE_INDEX"
+echo "Repeat Index: $REPEAT_INDEX"
 echo "Image: $IMG"
 
 if [ -z "$IMG" ]; then
-    echo "No image found for index $SLURM_ARRAY_TASK_ID"
+    echo "No image found for index $IMAGE_INDEX in $IMAGE_LIST_FILE"
     exit 1
 fi
 

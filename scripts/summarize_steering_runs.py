@@ -3,6 +3,7 @@ import csv
 import glob
 import json
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -69,12 +70,17 @@ def summarize_run(run_dir):
 
     parts = run_path.parts
     image_name = parts[-4] if len(parts) >= 4 else ""
+    run_dir_name = run_path.name
+    repeat_match = re.search(r"_rep(\d+)$", run_dir_name)
+    repeat_index = int(repeat_match.group(1)) if repeat_match else ""
 
     return {
         "run_dir": str(run_path),
+        "run_dir_name": run_dir_name,
         "image_name": image_name,
         "mode_family": mode_family,
         "score_mode": score_mode or "",
+        "repeat_index": repeat_index,
         "n_steps_recorded": n_steps_recorded,
         "transition_idx": "" if transition_idx is None else transition_idx,
         "crossed": transition_idx is not None,
