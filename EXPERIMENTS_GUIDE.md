@@ -236,10 +236,22 @@ python scripts/build_dog_image_list.py \
   --image-list scripts/imagenet_val_image_list.txt \
   --dog-list-out scripts/dog_image_list.txt \
   --summary-csv-out scripts/dog_image_summary.csv \
+  --ground-truth-file /path/to/ILSVRC2012_validation_ground_truth.txt \
+  --require-true-dog \
   --classifier-use-fp16
 ```
 
 This tells you how many relevant dog-start images you actually have in the full validation set.
+
+If you want to be stricter and keep only images whose classifier top-1 also agrees with the true ImageNet label, add:
+```bash
+  --require-classifier-match
+```
+
+Recommended policy for the paper:
+- select images by true ImageNet validation label (`--require-true-dog`)
+- optionally report classifier agreement statistics from `scripts/dog_image_summary.csv`
+- only use `--require-classifier-match` if we decide we want a cleaner but potentially smaller subset
 
 **Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
 - Slurm array over the filtered `scripts/dog_image_list.txt`
@@ -271,6 +283,7 @@ python scripts/summarize_steering_runs.py \
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
 - it will prefer `scripts/imagenet_val_image_list.txt` when present and otherwise fall back to `scripts/image_list.txt`
+- it can also use the official ImageNet validation ground-truth file when available on the cluster
 - it will build the dog-only image list if missing
 - it will reuse existing run-summary CSVs when present
 - otherwise it rebuilds them from the saved steering runs before plotting
