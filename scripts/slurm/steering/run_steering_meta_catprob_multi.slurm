@@ -18,9 +18,11 @@ mkdir -p slurm_logs
 
 IMAGE_LIST_FILE="${IMAGE_LIST_FILE:-scripts/dog_image_list.txt}"
 REPEATS="${REPEATS:-1}"
+BASE_SEED="${BASE_SEED:-20260407}"
 TASK_ID="${SLURM_ARRAY_TASK_ID:-0}"
 IMAGE_INDEX=$((TASK_ID / REPEATS))
 REPEAT_INDEX=$((TASK_ID % REPEATS))
+SEED=$((BASE_SEED + IMAGE_INDEX * 1000 + REPEAT_INDEX))
 IMG=$(sed -n "$((IMAGE_INDEX + 1))p" "$IMAGE_LIST_FILE")
 OUT="/work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi"
 TARGET_PROB_STOP=0.90
@@ -29,6 +31,7 @@ RUN_TAG="${SLURM_JOB_ID}_${TASK_ID}_rep${REPEAT_INDEX}"
 echo "Job Array ID: $TASK_ID"
 echo "Image Index: $IMAGE_INDEX"
 echo "Repeat Index: $REPEAT_INDEX"
+echo "Seed: $SEED"
 echo "Image: $IMG"
 
 if [ -z "$IMG" ]; then
@@ -46,6 +49,7 @@ python scripts/steered_sequential_uturns_meta.py \
     --penalty 0.0 \
     --batch_size 64 \
     --max_retries 4 \
+    --seed "$SEED" \
     --require_top1_dog True \
     --require_target_increase True \
     --target_prob_stop ${TARGET_PROB_STOP} \

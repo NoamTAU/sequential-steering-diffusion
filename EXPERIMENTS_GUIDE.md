@@ -253,6 +253,21 @@ Recommended policy for the paper:
 - optionally report classifier agreement statistics from `scripts/dog_image_summary.csv`
 - only use `--require-classifier-match` if we decide we want a cleaner but potentially smaller subset
 
+**Build a reproducible strict subset for the steering study:**
+```bash
+python scripts/sample_image_list.py \
+  --input scripts/dog_image_list_strict.txt \
+  --output scripts/dog_image_list_strict_100.txt \
+  --num-images 100 \
+  --seed 20260407
+```
+
+Recommended pilot for the image section:
+- `100` strict images
+- `4` steering trajectories per image
+- same seed pairing across `dog->cat` and `dog->dog` for each `(image, repeat)` pair
+- total jobs: `100 * 4 * 2 = 800`
+
 **Multi-image meta-class steering (dog$\rightarrow$cat, probability only):**
 - Slurm array over the filtered `scripts/dog_image_list.txt`
 
@@ -260,14 +275,15 @@ Recommended policy for the paper:
 - Original class is auto-detected from the classifier top-1 prediction
 - The repeated-trajectory multi-image jobs are submitted together with:
 ```bash
-bash scripts/slurm/steering/submit_multi_image_steering.sh scripts/dog_image_list.txt 5
+bash scripts/slurm/steering/submit_multi_image_steering.sh scripts/dog_image_list_strict_100.txt 4 20260407
 ```
 
 This submit helper:
-- counts the relevant dog-start images in `scripts/dog_image_list.txt`
+- counts the relevant dog-start images in the chosen list
 - sets the exact Slurm array size
 - launches both `dog$\rightarrow$cat` and `dog$\rightarrow$dog` jobs
-- uses `REPEATS=5` in the example above, meaning 5 steering trajectories per image per regime
+- uses deterministic paired seeds across the two regimes for each `(image, repeat)` pair
+- uses `REPEATS=4` in the example above, meaning 4 steering trajectories per image per regime
 
 **Aggregate steering runs for notebook analysis:**
 ```bash

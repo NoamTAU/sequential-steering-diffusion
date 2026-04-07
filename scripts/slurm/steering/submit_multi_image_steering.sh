@@ -3,6 +3,7 @@ set -euo pipefail
 
 IMAGE_LIST_FILE="${1:-scripts/dog_image_list.txt}"
 REPEATS="${2:-5}"
+BASE_SEED="${3:-20260407}"
 
 if [ ! -f "$IMAGE_LIST_FILE" ]; then
   echo "Missing image list: $IMAGE_LIST_FILE"
@@ -20,14 +21,15 @@ echo "Submitting multi-image steering arrays"
 echo "Image list: $IMAGE_LIST_FILE"
 echo "Images: $N_IMAGES"
 echo "Repeats per image: $REPEATS"
+echo "Base seed: $BASE_SEED"
 echo "Array range: 0-$ARRAY_END"
 
 sbatch \
   --array="0-$ARRAY_END" \
-  --export=ALL,IMAGE_LIST_FILE="$IMAGE_LIST_FILE",REPEATS="$REPEATS" \
+  --export=ALL,IMAGE_LIST_FILE="$IMAGE_LIST_FILE",REPEATS="$REPEATS",BASE_SEED="$BASE_SEED" \
   scripts/slurm/steering/run_steering_meta_catprob_multi.slurm
 
 sbatch \
   --array="0-$ARRAY_END" \
-  --export=ALL,IMAGE_LIST_FILE="$IMAGE_LIST_FILE",REPEATS="$REPEATS" \
+  --export=ALL,IMAGE_LIST_FILE="$IMAGE_LIST_FILE",REPEATS="$REPEATS",BASE_SEED="$BASE_SEED" \
   scripts/slurm/steering/run_steering_dog2dog_prob_multi.slurm

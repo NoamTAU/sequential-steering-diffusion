@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import json
+import random
 import numpy as np
 import torch as th
 from PIL import Image
@@ -36,6 +37,14 @@ def classify_start_image(classifier, preprocess, start_tensor):
     top1_idx = int(th.argmax(logits, dim=1).item())
     top1_prob = float(probs[0, top1_idx].item())
     return top1_idx, top1_prob
+
+
+def set_all_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    th.manual_seed(seed)
+    if th.cuda.is_available():
+        th.cuda.manual_seed_all(seed)
 
 def get_meta_score_full(classifier, preprocess, batch_images, penalty_weight, score_mode):
     """
@@ -350,6 +359,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 def main():
     args = create_argparser().parse_args()
     device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    if args.seed >= 0:
+        set_all_seeds(args.seed)
 
     def log_cuda_mem(prefix):
         if device.type != "cuda":
@@ -403,6 +414,7 @@ def main():
         "top1_class_idx": int(top1_idx),
         "top1_prob": float(top1_prob),
         "is_top1_dog": bool(top1_idx in DOG_INDICES),
+        "seed": int(args.seed),
     }
     if args.require_top1_dog and top1_idx not in DOG_INDICES:
         print(
@@ -470,6 +482,7 @@ def create_argparser():
         resblock_updown=True,
         use_new_attention_order=False,
         classifier_use_fp16=False,
+        seed=-1,
         require_top1_dog=False,
         require_target_increase=False,
         target_prob_epsilon=1e-4,

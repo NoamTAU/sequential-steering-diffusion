@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import json
+import random
 import numpy as np
 import torch as th
 from PIL import Image
@@ -85,6 +86,14 @@ def classify_start_image(classifier, preprocess, start_tensor):
     top1_idx = int(th.argmax(logits, dim=1).item())
     top1_prob = float(probs[0, top1_idx].item())
     return top1_idx, top1_prob, logits, probs
+
+
+def set_all_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    th.manual_seed(seed)
+    if th.cuda.is_available():
+        th.cuda.manual_seed_all(seed)
 
 def run_steering_trajectory(args, model, diffusion, classifier, classifier_preprocess, device, start_tensor, trajectory_dir):
     
@@ -399,6 +408,8 @@ def run_steering_trajectory(args, model, diffusion, classifier, classifier_prepr
 
 def main():
     args = create_argparser().parse_args()
+    if args.seed >= 0:
+        set_all_seeds(args.seed)
     device = "cuda" if th.cuda.is_available() else "cpu"
     
     # Load Models
@@ -428,6 +439,7 @@ def main():
         "top1_class_idx": int(top1_idx),
         "top1_prob": float(top1_prob),
         "is_top1_dog": bool(top1_idx in DOG_INDICES),
+        "seed": int(args.seed),
     }
 
     if args.auto_orig_class:
@@ -535,6 +547,7 @@ def create_argparser():
         resblock_updown=True,
         use_new_attention_order=False,
         classifier_use_fp16=False,
+        seed=-1,
         auto_orig_class=False,
         require_orig_in_dog_indices=False,
         auto_target_dog=False,
