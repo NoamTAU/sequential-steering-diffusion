@@ -343,10 +343,12 @@ bash scripts/slurm/steering/resume_multi_image_steering.sh \
   4 \
   20260407 \
   /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi/steering_summary.csv \
-  /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv
+  /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv \
+  /work/pcsl/Noam/sequential_diffusion/metadata/manifests
 ```
 
-This builds two manifests from the current CSV summaries and only relaunches missing `(image, repeat)` tasks.
+This builds two manifests under shared storage and only relaunches missing `(image, repeat)` tasks.
+Do not use `/tmp` for these manifests, because compute nodes may not see the login node's local `/tmp`.
 
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`

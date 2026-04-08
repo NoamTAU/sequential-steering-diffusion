@@ -6,8 +6,11 @@ EXPECTED_REPEATS="${2:-4}"
 BASE_SEED="${3:-20260407}"
 META_CSV="${4:-/work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi/steering_summary.csv}"
 DOG_CSV="${5:-/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv}"
-META_MANIFEST="${6:-/tmp/steering_meta_missing_manifest.csv}"
-DOG_MANIFEST="${7:-/tmp/steering_dog_missing_manifest.csv}"
+MANIFEST_ROOT="${6:-/work/pcsl/Noam/sequential_diffusion/metadata/manifests}"
+META_MANIFEST="${7:-$MANIFEST_ROOT/steering_meta_missing_manifest.csv}"
+DOG_MANIFEST="${8:-$MANIFEST_ROOT/steering_dog_missing_manifest.csv}"
+
+mkdir -p "$MANIFEST_ROOT"
 
 python scripts/build_missing_steering_manifest.py \
   --active-image-list "$ACTIVE_IMAGE_LIST" \
