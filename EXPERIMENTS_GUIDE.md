@@ -316,6 +316,22 @@ The notebook also contains:
 - it plots the mean probability curves with shaded standard-deviation bands across trajectories
 - it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
 
+If you want to deepen statistics for one specific figure image without waiting for the full pilot, use:
+```bash
+bash scripts/slurm/steering/submit_single_image_extension.sh \
+  /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
+  248 \
+  22 \
+  24 \
+  20260408
+```
+
+This will add:
+- `22` more `dog->cat` runs
+- `24` more `dog->dog` runs with fixed target `248`
+
+For the new per-image averaged-curves notebook cell, rebuilding the summary CSVs is not required, because that cell scans the raw run directories directly.
+
 ## 4) Manifold Probe (Unguided + Full Logits)
 
 **Script:** `scripts/probe_manifold.py`
