@@ -315,7 +315,10 @@ The notebook also contains:
 - older single-image roots can be re-enabled manually if needed
 - it picks an image with repeated runs in both `dog->cat` and `dog->dog`
 - for `dog->dog`, it can require that the recorded source class matches the classifier top-1, which avoids mixing in older runs with inconsistent source/target bookkeeping
+- it can require structured repeated runs (`_rep...`) only, which avoids legacy naming/layout artifacts
+- it reports target-monotonicity violations before plotting, so we can detect if the selected run set still contains trajectories inconsistent with the current `skip + require_target_increase` setup
 - it plots the mean probability curves with shaded standard-deviation bands across trajectories
+- when averaging, it carries the final value forward after early stopping instead of dropping finished runs from the mean
 - it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
 
 For the multi-image regime summary cell:
