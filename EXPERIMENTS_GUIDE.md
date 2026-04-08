@@ -347,6 +347,21 @@ Important:
 - fix both source and target explicitly from the validated run family you want to extend
 - otherwise, if the classifier top-1 changes or differs from the original run setup, the extra jobs can be wasted
 
+If you want the code to choose a clean paper example from the recent pilot and extend it automatically to a target count, use:
+```bash
+bash scripts/slurm/steering/submit_best_steering_example.sh \
+  scripts/dog_image_list_strict_100.txt \
+  20 \
+  20260408
+```
+
+This will:
+- search the recent multi-image pilot only
+- require structured repeated runs
+- require `dog->dog` runs where source class matches the classifier top-1
+- choose the best-supported image/source/target combination
+- submit just enough extra `dog->cat` and `dog->dog` runs to reach the requested total
+
 ## 4) Manifold Probe (Unguided + Full Logits)
 
 **Script:** `scripts/probe_manifold.py`

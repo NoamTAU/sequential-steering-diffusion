@@ -209,6 +209,7 @@ Decide which experiment we want to run first:
   - The per-image averaged-curves cell now also checks target monotonicity explicitly and uses carry-forward averaging after early stopping, which is the correct treatment for the `skip` steering runs.
   - Added a focused single-image extension workflow so a chosen paper example can be deepened to higher trajectory counts with a fixed `dog->dog` target, independently of the broader multi-image pilot.
   - Tightened that single-image extension workflow: `dog->dog` extensions now require both fixed source and fixed target, because relying on auto-detected source can silently invalidate the intended comparison.
+  - Added `select_best_steering_example.py` and `submit_best_steering_example.sh` so we can automatically choose a clean image/source/target triple from the recent pilot and top it up to a requested number of trajectories for the paper figure.
   - Added `scripts/slurm/steering/submit_multi_image_steering.sh` so the exact Slurm array size is computed from the dog-only image list and a requested repeat count.
   - The multi-image steering workflow is now designed to run repeated steering trajectories per image, not just one run per image.
   - Added start-image auto-classification support to the steering scripts:
