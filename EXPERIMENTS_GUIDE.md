@@ -318,6 +318,18 @@ This reports:
 
 Use this before trusting the notebook tables. If the `common images with >=4 repeats in both regimes` count is well below `100`, the pilot is not complete yet.
 
+**Resume only the missing pilot tasks instead of resubmitting everything:**
+```bash
+bash scripts/slurm/steering/resume_multi_image_steering.sh \
+  scripts/dog_image_list_strict_100.txt \
+  4 \
+  20260407 \
+  /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi/steering_summary.csv \
+  /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv
+```
+
+This builds two manifests from the current CSV summaries and only relaunches missing `(image, repeat)` tasks.
+
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
 - it will prefer `scripts/imagenet_val_image_list.txt` when present and otherwise fall back to `scripts/image_list.txt`
@@ -385,7 +397,8 @@ This will:
 Recommended order on the cluster:
 1. rebuild the two steering summary CSVs
 2. run `check_steering_pilot_status.py`
-3. only if you need a deeper matched figure example, run `submit_best_steering_example.sh`
+3. if the pilot is incomplete, run `resume_multi_image_steering.sh`
+4. only if you need a deeper matched figure example, run `submit_best_steering_example.sh`
 
 ## 4) Manifold Probe (Unguided + Full Logits)
 
