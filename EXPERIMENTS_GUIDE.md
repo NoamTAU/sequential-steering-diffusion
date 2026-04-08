@@ -391,12 +391,24 @@ If you want to preview several clean candidate images before choosing one, use:
 ```bash
 python scripts/select_best_steering_example.py \
   --active-image-list scripts/dog_image_list_strict_100.txt \
+  --image-summary-csv scripts/dog_image_summary.csv \
   --target-total 20 \
   --require-repeat-index \
   --top-k 10
 ```
 
-This prints the top clean image/source/target candidates using the actual image paths from the active pilot list.
+This prints the top clean image/source/target candidates using the actual image paths from the active pilot list, and it now includes:
+- classifier top-1 confidence (`top1_prob`)
+- top-1 class index
+- true class index
+- whether top-1 matches the true label
+
+Ranking is now:
+1. strongest matched support across `dog->cat` and `dog->dog`
+2. total support
+3. classifier confidence on the start image
+
+So the shortlist is statistically convenient and classifier-clean, but you should still inspect the candidate images visually before choosing the paper figure.
 
 This will:
 - search the recent multi-image pilot only

@@ -1,4 +1,5 @@
 import argparse
+import csv
 import glob
 import json
 import os
@@ -10,6 +11,19 @@ from pathlib import Path
 def read_image_map(path: Path) -> dict[str, str]:
     with path.open("r") as f:
         return {Path(line.strip()).stem: line.strip() for line in f if line.strip()}
+
+
+def load_image_summary(path: Path) -> dict[str, dict]:
+    if not path.exists():
+        return {}
+    with path.open("r", newline="") as f:
+        rows = list(csv.DictReader(f))
+    out = {}
+    for row in rows:
+        image_name = str(row.get("image_name", "")).strip()
+        if image_name:
+            out[image_name] = row
+    return out
 
 
 def load_json(path: Path):
@@ -88,12 +102,20 @@ def collect_dog_runs(root: Path, active_images: set[str], require_repeat_index: 
     return runs_by_combo
 
 
-def choose_best(meta_runs_by_image, dog_runs_by_combo, image_map):
+def parse_float(value, default=0.0):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def choose_best(meta_runs_by_image, dog_runs_by_combo, image_map, image_summary):
     candidates = []
     for (image_name, orig_idx, target_idx), dog_runs in dog_runs_by_combo.items():
         meta_runs = meta_runs_by_image.get(image_name, [])
         if not meta_runs:
             continue
+        summary = image_summary.get(image_name, {})
         candidates.append(
             {
                 "image_name": image_name,
@@ -104,9 +126,13 @@ def choose_best(meta_runs_by_image, dog_runs_by_combo, image_map):
                 "score": min(len(meta_runs), len(dog_runs)),
                 "total": len(meta_runs) + len(dog_runs),
                 "image_path": image_map[image_name],
+                "top1_prob": parse_float(summary.get("top1_prob")),
+                "top1_class_idx": summary.get("top1_class_idx", ""),
+                "true_class_idx": summary.get("true_class_idx", ""),
+                "top1_matches_true": summary.get("top1_matches_true", ""),
             }
         )
-    candidates.sort(key=lambda row: (row["score"], row["total"]), reverse=True)
+    candidates.sort(key=lambda row: (row["score"], row["total"], row["top1_prob"]), reverse=True)
     return candidates
 
 
@@ -115,6 +141,7 @@ def main():
     parser.add_argument("--active-image-list", required=True)
     parser.add_argument("--meta-root", default="/work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi")
     parser.add_argument("--dog-root", default="/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi")
+    parser.add_argument("--image-summary-csv", default="scripts/dog_image_summary.csv")
     parser.add_argument("--target-total", type=int, default=20)
     parser.add_argument("--require-repeat-index", action="store_true")
     parser.add_argument("--top-k", type=int, default=1)
@@ -122,10 +149,11 @@ def main():
     args = parser.parse_args()
 
     image_map = read_image_map(Path(args.active_image_list))
+    image_summary = load_image_summary(Path(args.image_summary_csv))
     active_images = set(image_map)
     meta_runs_by_image = collect_meta_runs(Path(args.meta_root), active_images, args.require_repeat_index)
     dog_runs_by_combo = collect_dog_runs(Path(args.dog_root), active_images, args.require_repeat_index)
-    candidates = choose_best(meta_runs_by_image, dog_runs_by_combo, image_map)
+    candidates = choose_best(meta_runs_by_image, dog_runs_by_combo, image_map, image_summary)
     if not candidates:
         raise SystemExit("No valid image/source/target combination found.")
 
@@ -145,6 +173,10 @@ def main():
             "image_path",
             "orig_class_idx",
             "target_class_idx",
+            "top1_prob",
+            "top1_class_idx",
+            "true_class_idx",
+            "top1_matches_true",
             "meta_count",
             "dog_count",
             "meta_extra_needed",
@@ -163,6 +195,10 @@ def main():
             "image_path",
             "orig_class_idx",
             "target_class_idx",
+            "top1_prob",
+            "top1_class_idx",
+            "true_class_idx",
+            "top1_matches_true",
             "meta_count",
             "dog_count",
             "meta_extra_needed",
