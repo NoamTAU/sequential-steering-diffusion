@@ -17,6 +17,7 @@ conda activate llm_physics
 mkdir -p slurm_logs
 
 IMG="${IMG:?Need IMG=/full/path/to/image.JPEG}"
+ORIG_CLASS_IDX="${ORIG_CLASS_IDX:?Need ORIG_CLASS_IDX=<classifier index>}"
 TARGET_CLASS_IDX="${TARGET_CLASS_IDX:?Need TARGET_CLASS_IDX=<classifier index>}"
 OUT="${OUT:-/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi}"
 BASE_SEED="${BASE_SEED:-20260408}"
@@ -28,14 +29,20 @@ TARGET_PROB_STOP="${TARGET_PROB_STOP:-0.90}"
 echo "Image: $IMG"
 echo "Task ID: $TASK_ID"
 echo "Seed: $SEED"
+echo "Fixed source: $ORIG_CLASS_IDX"
 echo "Fixed target: $TARGET_CLASS_IDX"
+
+if [ "$ORIG_CLASS_IDX" -eq "$TARGET_CLASS_IDX" ]; then
+  echo "ORIG_CLASS_IDX and TARGET_CLASS_IDX must differ."
+  exit 1
+fi
 
 python scripts/steered_sequential_uturns_v4.py \
     --start_image_path "$IMG" \
     --output_dir "$OUT" \
-    --orig_class_idx 0 \
+    --orig_class_idx "$ORIG_CLASS_IDX" \
     --target_class_idx "$TARGET_CLASS_IDX" \
-    --auto_orig_class True \
+    --auto_orig_class False \
     --require_orig_in_dog_indices True \
     --auto_target_dog False \
     --num_steps 50 \

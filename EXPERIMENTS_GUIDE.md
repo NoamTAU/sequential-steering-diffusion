@@ -329,6 +329,7 @@ If you want to deepen statistics for one specific figure image without waiting f
 ```bash
 bash scripts/slurm/steering/submit_single_image_extension.sh \
   /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
+  249 \
   248 \
   22 \
   24 \
@@ -337,9 +338,14 @@ bash scripts/slurm/steering/submit_single_image_extension.sh \
 
 This will add:
 - `22` more `dog->cat` runs
-- `24` more `dog->dog` runs with fixed target `248`
+- `24` more `dog->dog` runs with fixed source `249` and fixed target `248`
 
 For the new per-image averaged-curves notebook cell, rebuilding the summary CSVs is not required, because that cell scans the raw run directories directly.
+
+Important:
+- for single-image `dog->dog` extensions, do not rely on auto-detected source class
+- fix both source and target explicitly from the validated run family you want to extend
+- otherwise, if the classifier top-1 changes or differs from the original run setup, the extra jobs can be wasted
 
 ## 4) Manifold Probe (Unguided + Full Logits)
 
