@@ -203,6 +203,7 @@ Decide which experiment we want to run first:
   - Added `scripts/sample_image_list.py` for reproducible subset selection from the strict dog list.
   - Multi-image steering arrays now use deterministic paired seeds across `dog->cat` and `dog->dog` for the same `(image, repeat)` pair.
   - Current recommended image-steering pilot is `100` strict images x `4` trajectories each (`800` jobs total across both regimes).
+  - Fixed the multi-image summary parser so `image_name` is read from the actual image directory level in the results tree, not from the root results folder.
   - Added `scripts/slurm/steering/submit_multi_image_steering.sh` so the exact Slurm array size is computed from the dog-only image list and a requested repeat count.
   - The multi-image steering workflow is now designed to run repeated steering trajectories per image, not just one run per image.
   - Added start-image auto-classification support to the steering scripts:

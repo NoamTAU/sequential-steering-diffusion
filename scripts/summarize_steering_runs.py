@@ -68,8 +68,7 @@ def summarize_run(run_dir):
     start_info = load_optional_json(run_path / "start_image_info.json")
     auto_target = load_optional_json(run_path / "auto_target.json")
 
-    parts = run_path.parts
-    image_name = parts[-4] if len(parts) >= 4 else ""
+    image_name = run_path.parent.parent.name if len(run_path.parents) >= 2 else ""
     run_dir_name = run_path.name
     repeat_match = re.search(r"_rep(\d+)$", run_dir_name)
     repeat_index = int(repeat_match.group(1)) if repeat_match else ""

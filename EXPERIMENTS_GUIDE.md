@@ -296,6 +296,8 @@ python scripts/summarize_steering_runs.py \
   --out-csv /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv
 ```
 
+The summary script identifies images from the run directory layout, so if the multi-image run structure changes, rebuild the CSVs before using the notebook.
+
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
 - it will prefer `scripts/imagenet_val_image_list.txt` when present and otherwise fall back to `scripts/image_list.txt`
