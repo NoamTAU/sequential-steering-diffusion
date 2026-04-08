@@ -205,6 +205,7 @@ Decide which experiment we want to run first:
   - Current recommended image-steering pilot is `100` strict images x `4` trajectories each (`800` jobs total across both regimes).
   - Fixed the multi-image summary parser so `image_name` is read from the actual image directory level in the results tree, not from the root results folder.
   - Added a notebook cell for per-image averaged steering curves, which searches across existing `dog->cat` and `dog->dog` runs, selects a well-supported common image, and plots mean ± std probability trajectories with the averaged crossing marker.
+  - Tightened notebook defaults so the image analysis now prefers the recent strict-100 pilot, excludes inconsistent legacy `dog->dog` runs by default, and can later require full repeat counts for final paper statistics.
   - Added a focused single-image extension workflow so a chosen paper example can be deepened to higher trajectory counts with a fixed `dog->dog` target, independently of the broader multi-image pilot.
   - Added `scripts/slurm/steering/submit_multi_image_steering.sh` so the exact Slurm array size is computed from the dog-only image list and a requested repeat count.
   - The multi-image steering workflow is now designed to run repeated steering trajectories per image, not just one run per image.

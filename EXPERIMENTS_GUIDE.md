@@ -311,10 +311,16 @@ The plotting notebook now contains a dedicated section for these multi-image sum
 
 The notebook also contains:
 - `## Per-Image Averaged Steering Curves`
-- it searches the existing run directories directly (including older single-image roots)
+- by default it searches only the recent multi-image roots
+- older single-image roots can be re-enabled manually if needed
 - it picks an image with repeated runs in both `dog->cat` and `dog->dog`
+- for `dog->dog`, it can require that the recorded source class matches the classifier top-1, which avoids mixing in older runs with inconsistent source/target bookkeeping
 - it plots the mean probability curves with shaded standard-deviation bands across trajectories
 - it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
+
+For the multi-image regime summary cell:
+- it can be restricted to the active experiment image list (currently `scripts/dog_image_list_strict_100.txt`)
+- it supports an optional full-repeat filter, so final paper statistics can be computed only after the desired repeat count is reached in both regimes
 
 If you want to deepen statistics for one specific figure image without waiting for the full pilot, use:
 ```bash
