@@ -309,6 +309,13 @@ The plotting notebook now contains a dedicated section for these multi-image sum
   - within each image across repeated steering trajectories
   - then across images for the final comparison
 
+The notebook also contains:
+- `## Per-Image Averaged Steering Curves`
+- it searches the existing run directories directly (including older single-image roots)
+- it picks an image with repeated runs in both `dog->cat` and `dog->dog`
+- it plots the mean probability curves with shaded standard-deviation bands across trajectories
+- it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
+
 ## 4) Manifold Probe (Unguided + Full Logits)
 
 **Script:** `scripts/probe_manifold.py`
