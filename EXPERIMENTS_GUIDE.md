@@ -387,6 +387,17 @@ bash scripts/slurm/steering/submit_best_steering_example.sh \
   20260408
 ```
 
+If you want to preview several clean candidate images before choosing one, use:
+```bash
+python scripts/select_best_steering_example.py \
+  --active-image-list scripts/dog_image_list_strict_100.txt \
+  --target-total 20 \
+  --require-repeat-index \
+  --top-k 10
+```
+
+This prints the top clean image/source/target candidates using the actual image paths from the active pilot list.
+
 This will:
 - search the recent multi-image pilot only
 - require structured repeated runs

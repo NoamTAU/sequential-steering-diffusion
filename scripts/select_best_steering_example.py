@@ -7,9 +7,9 @@ from collections import defaultdict
 from pathlib import Path
 
 
-def read_image_names(path: Path) -> set[str]:
+def read_image_map(path: Path) -> dict[str, str]:
     with path.open("r") as f:
-        return {Path(line.strip()).stem for line in f if line.strip()}
+        return {Path(line.strip()).stem: line.strip() for line in f if line.strip()}
 
 
 def load_json(path: Path):
@@ -88,7 +88,7 @@ def collect_dog_runs(root: Path, active_images: set[str], require_repeat_index: 
     return runs_by_combo
 
 
-def choose_best(meta_runs_by_image, dog_runs_by_combo):
+def choose_best(meta_runs_by_image, dog_runs_by_combo, image_map):
     candidates = []
     for (image_name, orig_idx, target_idx), dog_runs in dog_runs_by_combo.items():
         meta_runs = meta_runs_by_image.get(image_name, [])
@@ -103,6 +103,7 @@ def choose_best(meta_runs_by_image, dog_runs_by_combo):
                 "dog_count": len(dog_runs),
                 "score": min(len(meta_runs), len(dog_runs)),
                 "total": len(meta_runs) + len(dog_runs),
+                "image_path": image_map[image_name],
             }
         )
     candidates.sort(key=lambda row: (row["score"], row["total"]), reverse=True)
@@ -116,25 +117,29 @@ def main():
     parser.add_argument("--dog-root", default="/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi")
     parser.add_argument("--target-total", type=int, default=20)
     parser.add_argument("--require-repeat-index", action="store_true")
+    parser.add_argument("--top-k", type=int, default=1)
     parser.add_argument("--format", choices=["text", "json", "shell"], default="text")
     args = parser.parse_args()
 
-    active_images = read_image_names(Path(args.active_image_list))
+    image_map = read_image_map(Path(args.active_image_list))
+    active_images = set(image_map)
     meta_runs_by_image = collect_meta_runs(Path(args.meta_root), active_images, args.require_repeat_index)
     dog_runs_by_combo = collect_dog_runs(Path(args.dog_root), active_images, args.require_repeat_index)
-    candidates = choose_best(meta_runs_by_image, dog_runs_by_combo)
+    candidates = choose_best(meta_runs_by_image, dog_runs_by_combo, image_map)
     if not candidates:
         raise SystemExit("No valid image/source/target combination found.")
 
-    best = candidates[0]
-    best["meta_extra_needed"] = max(0, args.target_total - best["meta_count"])
-    best["dog_extra_needed"] = max(0, args.target_total - best["dog_count"])
-    best["image_path"] = f"/work/pcsl/Noam/diffusion_datasets/selected_images/{best['image_name']}.JPEG"
+    selected = candidates[: max(1, args.top_k)]
+    for row in selected:
+        row["meta_extra_needed"] = max(0, args.target_total - row["meta_count"])
+        row["dog_extra_needed"] = max(0, args.target_total - row["dog_count"])
 
     if args.format == "json":
-        print(json.dumps(best, indent=2))
+        payload = selected[0] if args.top_k == 1 else selected
+        print(json.dumps(payload, indent=2))
         return
     if args.format == "shell":
+        best = selected[0]
         for key in [
             "image_name",
             "image_path",
@@ -148,18 +153,24 @@ def main():
             print(f"{key.upper()}={best[key]}")
         return
 
-    print("Best clean steering example:")
-    for key in [
-        "image_name",
-        "image_path",
-        "orig_class_idx",
-        "target_class_idx",
-        "meta_count",
-        "dog_count",
-        "meta_extra_needed",
-        "dog_extra_needed",
-    ]:
-        print(f"{key}: {best[key]}")
+    header = "Best clean steering example:" if args.top_k == 1 else f"Top {len(selected)} clean steering examples:"
+    print(header)
+    for idx, row in enumerate(selected, start=1):
+        if args.top_k > 1:
+            print(f"[{idx}]")
+        for key in [
+            "image_name",
+            "image_path",
+            "orig_class_idx",
+            "target_class_idx",
+            "meta_count",
+            "dog_count",
+            "meta_extra_needed",
+            "dog_extra_needed",
+        ]:
+            print(f"{key}: {row[key]}")
+        if idx != len(selected):
+            print()
 
 
 if __name__ == "__main__":
