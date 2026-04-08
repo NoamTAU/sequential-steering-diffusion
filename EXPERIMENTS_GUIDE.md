@@ -298,6 +298,26 @@ python scripts/summarize_steering_runs.py \
 
 The summary script identifies images from the run directory layout, so if the multi-image run structure changes, rebuild the CSVs before using the notebook.
 
+**Check whether the `100 x 4` pilot is actually complete:**
+```bash
+python scripts/check_steering_pilot_status.py \
+  --active-image-list scripts/dog_image_list_strict_100.txt \
+  --meta-csv /work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi/steering_summary.csv \
+  --dog-csv /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi/steering_summary.csv \
+  --expected-repeats 4 \
+  --require-repeat-index
+```
+
+This reports:
+- how many active pilot images are present
+- how many images have any `dog->cat` runs
+- how many image/source/target triples have any clean `dog->dog` runs
+- how many images / triples have the full repeat count
+- how many images have the full repeat count in both regimes
+- the current best clean matched example image/source/target triple
+
+Use this before trusting the notebook tables. If the `common images with >=4 repeats in both regimes` count is well below `100`, the pilot is not complete yet.
+
 The plotting notebook now contains a dedicated section for these multi-image summaries:
 - `## Multi-image Steering Statistics (Paper-Ready)`
 - it will prefer `scripts/imagenet_val_image_list.txt` when present and otherwise fall back to `scripts/image_list.txt`
@@ -361,6 +381,11 @@ This will:
 - require `dog->dog` runs where source class matches the classifier top-1
 - choose the best-supported image/source/target combination
 - submit just enough extra `dog->cat` and `dog->dog` runs to reach the requested total
+
+Recommended order on the cluster:
+1. rebuild the two steering summary CSVs
+2. run `check_steering_pilot_status.py`
+3. only if you need a deeper matched figure example, run `submit_best_steering_example.sh`
 
 ## 4) Manifold Probe (Unguided + Full Logits)
 
