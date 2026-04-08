@@ -253,6 +253,24 @@ Recommended policy for the paper:
 - optionally report classifier agreement statistics from `scripts/dog_image_summary.csv`
 - only use `--require-classifier-match` if we decide we want a cleaner but potentially smaller subset
 
+To avoid rebuilding local metadata inside the git repo after every pull, prefer syncing it once into the cluster work directory:
+```bash
+bash scripts/sync_steering_metadata.sh \
+  /work/pcsl/Noam/sequential_diffusion/metadata \
+  /work/pcsl/Noam/diffusion_datasets/all_images \
+  /work/pcsl/imagenet/imagenet1k/devkit/ILSVRC2012_devkit_t12/data/ILSVRC2012_validation_ground_truth.txt \
+  100 \
+  20260407
+```
+
+This creates:
+- `/work/pcsl/Noam/sequential_diffusion/metadata/imagenet_val_image_list.txt`
+- `/work/pcsl/Noam/sequential_diffusion/metadata/dog_image_summary.csv`
+- `/work/pcsl/Noam/sequential_diffusion/metadata/dog_image_list_strict.txt`
+- `/work/pcsl/Noam/sequential_diffusion/metadata/dog_image_list_strict_100.txt`
+
+The notebook and example-selector now prefer these external metadata files automatically when they exist.
+
 **Build a reproducible strict subset for the steering study:**
 ```bash
 python scripts/sample_image_list.py \
@@ -390,8 +408,8 @@ bash scripts/slurm/steering/submit_best_steering_example.sh \
 If you want to preview several clean candidate images before choosing one, use:
 ```bash
 python scripts/select_best_steering_example.py \
-  --active-image-list scripts/dog_image_list_strict_100.txt \
-  --image-summary-csv scripts/dog_image_summary.csv \
+  --active-image-list /work/pcsl/Noam/sequential_diffusion/metadata/dog_image_list_strict_100.txt \
+  --image-summary-csv /work/pcsl/Noam/sequential_diffusion/metadata/dog_image_summary.csv \
   --target-total 20 \
   --require-repeat-index \
   --top-k 10

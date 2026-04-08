@@ -141,7 +141,7 @@ def main():
     parser.add_argument("--active-image-list", required=True)
     parser.add_argument("--meta-root", default="/work/pcsl/Noam/sequential_diffusion/results/steering_meta_v2_multi")
     parser.add_argument("--dog-root", default="/work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi")
-    parser.add_argument("--image-summary-csv", default="scripts/dog_image_summary.csv")
+    parser.add_argument("--image-summary-csv", default="/work/pcsl/Noam/sequential_diffusion/metadata/dog_image_summary.csv")
     parser.add_argument("--target-total", type=int, default=20)
     parser.add_argument("--require-repeat-index", action="store_true")
     parser.add_argument("--top-k", type=int, default=1)
