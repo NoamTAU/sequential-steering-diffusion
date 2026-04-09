@@ -360,6 +360,7 @@ The plotting notebook now contains a dedicated section for these multi-image sum
 - it aggregates in two stages:
   - within each image across repeated steering trajectories
   - then across images for the final comparison
+- the paper-facing summary is a one-row violin plot over image-level means with short panel labels and black mean±SEM markers
 
 The notebook also contains:
 - `## Per-Image Averaged Steering Curves`
