@@ -372,6 +372,7 @@ The notebook also contains:
 - it plots the mean probability curves with shaded standard-deviation bands across trajectories
 - when averaging, it carries the final value forward after early stopping instead of dropping finished runs from the mean
 - it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
+- it now also exports a representative-trajectory montage for the same selected image in both regimes, using the same single-trajectory visual language as the older image-steering cells
 
 For the multi-image regime summary cell:
 - it can be restricted to the active experiment image list (currently `scripts/dog_image_list_strict_100.txt`)
