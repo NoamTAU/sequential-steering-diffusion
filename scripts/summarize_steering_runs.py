@@ -29,6 +29,14 @@ def load_optional_json(path):
         return json.load(f)
 
 
+def parse_target_from_path(run_path):
+    for part in run_path.parts:
+        match = re.fullmatch(r"target(?:_auto)?_(\d+)", part)
+        if match:
+            return int(match.group(1))
+    return ""
+
+
 def summarize_run(run_dir):
     run_path = Path(run_dir)
     steering_path = run_path / "steering_data.npz"
@@ -90,8 +98,8 @@ def summarize_run(run_dir):
         "n_nonzero_attempt_steps": n_skips,
         "top1_class_idx": start_info.get("top1_class_idx", ""),
         "is_top1_dog": start_info.get("is_top1_dog", ""),
-        "orig_class_idx": auto_target.get("orig_class_idx", ""),
-        "target_class_idx": auto_target.get("target_class_idx", ""),
+        "orig_class_idx": auto_target.get("orig_class_idx", start_info.get("top1_class_idx", "")),
+        "target_class_idx": auto_target.get("target_class_idx", parse_target_from_path(run_path)),
     }
 
 

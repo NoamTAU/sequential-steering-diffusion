@@ -47,6 +47,14 @@ def find_image_name(run_dir: Path):
     return None
 
 
+def parse_target_from_run_dir(run_dir: Path):
+    for part in run_dir.parts:
+        m = re.fullmatch(r"target(?:_auto)?_(\d+)", part)
+        if m:
+            return int(m.group(1))
+    return None
+
+
 def iter_run_dirs(root: Path):
     for steering_path in glob.glob(str(root / "**" / "steering_data.npz"), recursive=True):
         yield Path(steering_path).parent
@@ -82,8 +90,8 @@ def collect_dog_runs(root: Path, active_images: set[str], require_repeat_index: 
 
         auto_info = load_json(run_dir / "auto_target.json")
         start_info = load_json(run_dir / "start_image_info.json")
-        orig = auto_info.get("orig_class_idx")
-        target = auto_info.get("target_class_idx")
+        orig = auto_info.get("orig_class_idx", start_info.get("top1_class_idx"))
+        target = auto_info.get("target_class_idx", parse_target_from_run_dir(run_dir))
         top1 = start_info.get("top1_class_idx")
         if orig is None or target is None or top1 is None:
             continue

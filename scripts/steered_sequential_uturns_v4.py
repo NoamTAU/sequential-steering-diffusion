@@ -471,6 +471,14 @@ def main():
         else:
             print("[auto-target] Failed to select a target class; using provided target_class_idx.")
 
+    if auto_info is None:
+        auto_info = {
+            "orig_class_idx": int(args.orig_class_idx),
+            "target_class_idx": int(args.target_class_idx),
+            "topk": [],
+            "selection_mode": "fixed",
+        }
+
     # Output Dir
     base_name = os.path.splitext(os.path.basename(args.start_image_path))[0]
     target_dir = f"target_{args.target_class_idx}"

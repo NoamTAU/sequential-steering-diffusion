@@ -401,6 +401,7 @@ Important:
 - for single-image `dog->dog` extensions, do not rely on auto-detected source class
 - fix both source and target explicitly from the validated run family you want to extend
 - otherwise, if the classifier top-1 changes or differs from the original run setup, the extra jobs can be wasted
+- fixed-target `dog->dog` extension runs now write `auto_target.json`; the analysis parsers also infer source/target metadata for older fixed-target runs that predate that bookkeeping fix
 
 If you want the code to choose a clean paper example from the recent pilot and extend it automatically to a target count, use:
 ```bash
