@@ -402,6 +402,7 @@ Important:
 - fix both source and target explicitly from the validated run family you want to extend
 - otherwise, if the classifier top-1 changes or differs from the original run setup, the extra jobs can be wasted
 - fixed-target `dog->dog` extension runs now write `auto_target.json`; the analysis parsers also infer source/target metadata for older fixed-target runs that predate that bookkeeping fix
+- for the selected terrier paper example (`ILSVRC2012_val_00038116`, source `183` Kerry blue terrier, target `189` Lakeland terrier), the raw dog->dog result tree was verified to contain `36` strict passing fixed-target runs; if the notebook only shows the original `4`, restart/reload the notebook after pulling the latest parser fixes
 
 If you want the code to choose a clean paper example from the recent pilot and extend it automatically to a target count, use:
 ```bash
@@ -433,6 +434,16 @@ Ranking is now:
 3. classifier confidence on the start image
 
 So the shortlist is statistically convenient and classifier-clean, but you should still inspect the candidate images visually before choosing the paper figure.
+
+To debug why a specific single-image extension is or is not being picked up by the notebook, scan the raw run tree directly:
+```bash
+python scripts/debug_single_image_steering_runs.py \
+  --root /work/pcsl/Noam/sequential_diffusion/results/steering_dog2dog_v1_multi \
+  --image-name ILSVRC2012_val_00038116 \
+  --target-idx 189
+```
+
+This prints each run directory as `PASS` or `DROP` with the parsed repeat, source, top-1, and target metadata. The per-image trajectory notebook cell should agree with the `PASS` count, except that it may intentionally cap the plotted curves via `MAX_RUNS_PER_REGIME`.
 
 This will:
 - search the recent multi-image pilot only
