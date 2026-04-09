@@ -369,9 +369,9 @@ The notebook also contains:
 - for `dog->dog`, it can require that the recorded source class matches the classifier top-1, which avoids mixing in older runs with inconsistent source/target bookkeeping
 - it can require structured repeated runs (`_rep...`) only, which avoids legacy naming/layout artifacts
 - it reports target-monotonicity violations before plotting, so we can detect if the selected run set still contains trajectories inconsistent with the current `skip + require_target_increase` setup
-- it plots the mean probability curves with shaded standard-deviation bands across trajectories
+- it now plots all selected trajectories as thin probability curves, with one representative trajectory highlighted for each regime
 - when averaging, it carries the final value forward after early stopping instead of dropping finished runs from the mean
-- it marks the crossing point on the averaged curves in the same style as the earlier single-trajectory plots
+- it marks the crossing point of the representative trajectory, so the line plot and the montage refer to the same run
 - it now also exports a representative-trajectory montage for the same selected image in both regimes, using the same single-trajectory visual language as the older image-steering cells
 
 For the multi-image regime summary cell:
