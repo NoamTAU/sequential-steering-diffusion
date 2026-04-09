@@ -360,7 +360,7 @@ The plotting notebook now contains a dedicated section for these multi-image sum
 - it aggregates in two stages:
   - within each image across repeated steering trajectories
   - then across images for the final comparison
-- the paper-facing summary is a one-row violin plot over image-level means with short panel labels and black mean±SEM markers
+- the paper-facing summary is a one-row violin plot over image-level means with short panel labels, 10pt-style PDF text, and black mean±SEM markers
 
 The notebook also contains:
 - `## Per-Image Averaged Steering Curves`
@@ -374,6 +374,7 @@ The notebook also contains:
 - when averaging, it carries the final value forward after early stopping instead of dropping finished runs from the mean
 - it marks the crossing point of the representative trajectory, so the line plot and the montage refer to the same run
 - it now also exports a representative-trajectory montage for the same selected image in both regimes, using the same single-trajectory visual language as the older image-steering cells
+- for the selected paper example, figure titles use class names such as `Kerry blue terrier -> cat` and `Kerry blue terrier -> Lakeland terrier`, not raw image IDs or target indices
 
 For the multi-image regime summary cell:
 - it can be restricted to the active experiment image list (currently `scripts/dog_image_list_strict_100.txt`)
