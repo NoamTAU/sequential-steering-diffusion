@@ -71,6 +71,9 @@ def summarize_run(run_dir):
     final_orig_prob = float(orig_probs[-1]) if len(orig_probs) else None
     max_target_prob = float(np.max(target_probs)) if len(target_probs) else None
     total_attempts = int(np.sum(attempts[1:])) if attempts is not None and len(attempts) > 1 else 0
+    attempts_to_crossing = ""
+    if attempts is not None and transition_idx is not None and len(attempts) > 1:
+        attempts_to_crossing = int(np.sum(attempts[1 : transition_idx + 1]))
     n_skips = int(np.sum(np.array(attempts[1:], dtype=int) > 0)) if attempts is not None and len(attempts) > 1 else 0
 
     start_info = load_optional_json(run_path / "start_image_info.json")
@@ -95,6 +98,7 @@ def summarize_run(run_dir):
         "final_orig_prob": final_orig_prob,
         "max_target_prob": max_target_prob,
         "total_attempts": total_attempts,
+        "attempts_to_crossing": attempts_to_crossing,
         "n_nonzero_attempt_steps": n_skips,
         "top1_class_idx": start_info.get("top1_class_idx", ""),
         "is_top1_dog": start_info.get("is_top1_dog", ""),
