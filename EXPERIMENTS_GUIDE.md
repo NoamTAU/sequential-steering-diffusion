@@ -115,6 +115,57 @@ python scripts/sequential_uturns.py \
   --trajectory_idx 7
 ```
 
+### High-Noise Latent Sweep
+
+For the ergodicity / latent-decorrelation paper, the current question is whether increasing the per-U-turn masking fraction changes the relative survival of low- vs high-level ConvNeXt latents.
+
+The intended workflow is:
+1. generate unguided sequential trajectories at larger `noise_step`
+2. evaluate ConvNeXt latent cosine survival on those trajectories
+3. use the notebook section `High-Noise Latent Regime Comparison` to make:
+   - a row of same-observable latent-survival plots across noise
+   - an AUC-based early-vs-late layer summary vs noise
+
+**Submit a high-noise sweep over an image list:**
+```bash
+cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
+
+IMAGE_LIST_FILE=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+NOISE_LEVELS_CSV=300,400,500 \
+NUM_TRAJECTORIES=20 \
+NUM_UTURNS=100 \
+bash scripts/slurm/sequential/submit_high_noise_latent_sweep.sh
+```
+
+Notes:
+- `IMAGE_LIST_FILE` can be any newline-separated list of image paths.
+- `NOISE_LEVELS_CSV` should usually be the high-noise regime you want to test, e.g. `300,400,500` or `300,400,500,600`.
+- the helper computes the Slurm array size automatically from `(num_images x num_noise_levels)`.
+
+**Evaluate ConvNeXt latents only on that sweep:**
+```bash
+cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
+
+sbatch \
+  --export=ALL,DATA_DIR=/work/pcsl/Noam/sequential_diffusion/results/sequential_uturns,OUTPUT_BASE=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,STATS_DIR=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,IMAGE_LIST_FILE=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt,NOISE_LEVELS_CSV=300,400,500 \
+  scripts/slurm/sequential/run_high_noise_latent_eval.slurm
+```
+
+Under the hood this runs:
+```bash
+python scripts/evaluate_all_images_all_noises.py \
+  --data_dir /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
+  --output_base /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results \
+  --stats_dir /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results \
+  --image_list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+  --noise_steps 300 400 500
+```
+
+`evaluate_all_images_all_noises.py` now accepts:
+- `--image_list`: restrict evaluation to a newline-separated list of image paths
+- `--noise_steps`: restrict evaluation to a specific subset of noise levels
+- `--max_images`: optional cap for quick tests
+
 ## 3) Guided Steering (Dogs → Cats or Specific Classes)
 
 **Steer between two specific ImageNet classes:** `scripts/steered_sequential_uturns_v4.py`

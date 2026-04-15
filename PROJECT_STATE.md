@@ -89,8 +89,26 @@ Decide which experiment we want to run first:
 3. **Analysis pass** over existing trajectories.
 
 ## Recent Updates
+- Session update (2026-04-15):
+  - Project split:
+    - the work is now being separated into two streams:
+      1. a theory / ergodicity paper focused on sequence-level relaxation predictions in language and images
+      2. a steering paper focused on steering results, which will require additional data collection
+  - Current image priority:
+    - the active image question is now whether the observed slow decay of high-level ConvNeXt latents persists at higher masking fractions per U-turn
+    - operationally, this means sweeping larger `noise_step` values in the unguided sequential-U-turn pipeline and regenerating the latent-survival figure
+  - Tooling added for this pivot:
+    - added `scripts/slurm/sequential/run_high_noise_latent_sweep.slurm`
+    - added `scripts/slurm/sequential/submit_high_noise_latent_sweep.sh`
+    - added `scripts/slurm/sequential/run_high_noise_latent_eval.slurm`
+    - extended `scripts/evaluate_all_images_all_noises.py` so the latent evaluator can be restricted to a target image list and target noise steps instead of reprocessing the full historical tree
+    - appended a new notebook section to `notebooks/plot_generation_sequential.ipynb` that:
+      - renders a row of same-observable latent-survival plots across selected noise levels
+      - computes an early-layer vs late-layer AUC summary across noise
+      - reports the regime gap `high-level AUC - low-level AUC`, which should cross zero if higher-level latents start decorrelating faster than lower-level ones at high noise
+
 - Added a clean plotting notebook: `notebooks/plot_generation_sequential.ipynb`.
-  - Generates a horizontal “cartoon” of sequential U‑turns.
+  - Generates a horizontal “cartoon” of sequential U-turns.
   - Uses hardcoded SSH paths under `/work/pcsl/Noam/...`.
   - Optional auto‑selection of a “nice” trajectory using a drift/smoothness proxy from saved CLIP patch embeddings.
 - Added a discovery cell in `notebooks/plot_generation_sequential.ipynb` to scan available images, noise levels, trajectory counts, and approximate max U‑turns.

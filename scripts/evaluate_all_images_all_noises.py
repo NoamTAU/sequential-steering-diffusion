@@ -25,6 +25,17 @@ from guided_diffusion import dist_util, logger
 from guided_diffusion.script_util import add_dict_to_argparser
 from guided_diffusion.torch_classifiers import load_classifier
 
+
+def read_image_names_from_list(path):
+    image_names = []
+    with open(path, "r") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line:
+                continue
+            image_names.append(os.path.splitext(os.path.basename(line))[0])
+    return image_names
+
 def get_max_uturns(traj_dir):
     files = glob.glob(os.path.join(traj_dir, "uturn_*.jpeg"))
     if not files: 
@@ -148,6 +159,8 @@ def process_single_image_noise(image_name, noise_step, args, classifier, preproc
 
 def main():
     args = create_argparser().parse_args()
+    if args.max_images is not None:
+        args.max_images = int(args.max_images)
     
     # We use a direct logger config instead of dist_util to avoid MPI overhead for single process
     logger.configure(dir=args.output_base)
@@ -202,6 +215,13 @@ def main():
     
     all_items = sorted(os.listdir(args.data_dir))
     image_names = [d for d in all_items if os.path.isdir(os.path.join(args.data_dir, d))]
+    if args.image_list:
+        requested = set(read_image_names_from_list(args.image_list))
+        image_names = [name for name in image_names if name in requested]
+        logger.log(f"Filtered to {len(image_names)} images from image list: {args.image_list}")
+    if args.max_images is not None:
+        image_names = image_names[: args.max_images]
+        logger.log(f"Truncated to first {len(image_names)} images via --max-images")
     
     logger.log(f"Found {len(image_names)} potential image folders.")
 
@@ -216,6 +236,8 @@ def main():
         for n_folder in noise_folders:
             try:
                 noise_val = int(os.path.basename(n_folder).split('_')[-1])
+                if args.noise_steps and noise_val not in args.noise_steps:
+                    continue
                 
                 process_single_image_noise(
                     img_name, 
@@ -242,10 +264,19 @@ def create_argparser():
         # Default Output root
         output_base=os.path.join(os.getcwd(), "sequential_analysis_results"),
         # NEW: Optional separate path for stats
-        stats_dir=None
+        stats_dir=None,
+        image_list=None,
+        max_images=None,
     )
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
+    parser.add_argument(
+        "--noise_steps",
+        nargs="+",
+        type=int,
+        default=None,
+        help="Optional subset of noise steps to evaluate, e.g. --noise_steps 300 400 500",
+    )
     return parser
 
 if __name__ == "__main__":
