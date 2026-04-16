@@ -182,6 +182,28 @@ This reports, for each `(image, noise)` pair:
 - whether those trajectories reached `uturn_100`
 - whether `sequential_activations_v2.pk` has been produced
 
+**Build a rerun manifest for missing / incomplete generation pairs:**
+```bash
+python scripts/build_high_noise_missing_manifest.py \
+  --image-list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+  --results-root /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
+  --noise-steps 400 600 800 \
+  --expected-trajectories 20 \
+  --expected-uturns 100 \
+  --out-csv /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_manifest.csv
+```
+
+**Rerun only those missing / incomplete pairs:**
+```bash
+MANIFEST_CSV=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_manifest.csv \
+NUM_TRAJECTORIES=20 \
+NUM_UTURNS=100 \
+BACKUP_PARTIAL=1 \
+bash scripts/slurm/sequential/submit_high_noise_latent_manifest.sh
+```
+
+This manifest workflow is important because `scripts/sequential_uturns.py` treats `--num_uturns` as *new* U-turns to add on top of an existing trajectory. For incomplete pilot pairs we therefore rerun the whole `(image, noise)` pair from scratch after backing up the partial directory, rather than resuming in place.
+
 ## 3) Guided Steering (Dogs → Cats or Specific Classes)
 
 **Steer between two specific ImageNet classes:** `scripts/steered_sequential_uturns_v4.py`
