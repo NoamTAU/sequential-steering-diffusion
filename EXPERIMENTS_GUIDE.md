@@ -186,27 +186,25 @@ This reports, for each `(image, noise)` pair:
 - whether those trajectories reached `uturn_100`
 - whether `sequential_activations_v2.pk` has been produced
 
-**Build a rerun manifest for missing / incomplete generation pairs:**
+**Build a manifest of missing trajectory indices:**
 ```bash
-python scripts/build_high_noise_missing_manifest.py \
+python scripts/build_high_noise_missing_trajectories.py \
   --image-list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
   --results-root /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
   --noise-steps 400 600 800 \
   --expected-trajectories 20 \
   --expected-uturns 100 \
-  --out-csv /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_manifest.csv
+  --out-csv /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_trajectories.csv
 ```
 
-**Rerun only those missing / incomplete pairs:**
+**Fill only those missing trajectories, one trajectory per job:**
 ```bash
-MANIFEST_CSV=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_manifest.csv \
-NUM_TRAJECTORIES=20 \
+MANIFEST_CSV=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_missing_trajectories.csv \
 NUM_UTURNS=100 \
-BACKUP_PARTIAL=1 \
-bash scripts/slurm/sequential/submit_high_noise_latent_manifest.sh
+bash scripts/slurm/sequential/submit_high_noise_latent_missing_traj.sh
 ```
 
-This manifest workflow is important because `scripts/sequential_uturns.py` treats `--num_uturns` as *new* U-turns to add on top of an existing trajectory. For incomplete pilot pairs we therefore rerun the whole `(image, noise)` pair from scratch after backing up the partial directory, rather than resuming in place.
+This is the preferred recovery path when high-noise jobs time out partway through a pair. `scripts/sequential_uturns.py` already knows how to resume a single `trajectory_idx` from its last completed U-turn, so one-trajectory-per-job is the correct granularity for expensive `noise_step` values such as `600` and `800`.
 
 ## 3) Guided Steering (Dogs → Cats or Specific Classes)
 
