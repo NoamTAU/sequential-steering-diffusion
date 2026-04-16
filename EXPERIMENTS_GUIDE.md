@@ -147,7 +147,7 @@ Notes:
 cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
 
 sbatch \
-  --export=ALL,DATA_DIR=/work/pcsl/Noam/sequential_diffusion/results/sequential_uturns,OUTPUT_BASE=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,STATS_DIR=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,IMAGE_LIST_FILE=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt,NOISE_LEVELS_CSV=300,400,500 \
+  --export=ALL,DATA_DIR=/work/pcsl/Noam/sequential_diffusion/results/sequential_uturns,OUTPUT_BASE=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,STATS_DIR=/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results,IMAGE_LIST_FILE=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt,NOISE_LEVELS_SPEC=300:400:500 \
   scripts/slurm/sequential/run_high_noise_latent_eval.slurm
 ```
 
@@ -160,6 +160,10 @@ python scripts/evaluate_all_images_all_noises.py \
   --image_list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
   --noise_steps 300 400 500
 ```
+
+Note:
+- `submit_high_noise_latent_sweep.sh` still accepts user-facing `NOISE_LEVELS_CSV=300,400,500`
+- internally it converts that to a colon-separated spec before calling `sbatch --export`, because commas are separators in `sbatch --export`
 
 `evaluate_all_images_all_noises.py` now accepts:
 - `--image_list`: restrict evaluation to a newline-separated list of image paths

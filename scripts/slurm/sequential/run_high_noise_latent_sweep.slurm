@@ -20,13 +20,13 @@
 set -euo pipefail
 
 IMAGE_LIST_FILE=${IMAGE_LIST_FILE:-scripts/image_list.txt}
-NOISE_LEVELS_CSV=${NOISE_LEVELS_CSV:-300,400,500}
+NOISE_LEVELS_SPEC=${NOISE_LEVELS_SPEC:-300:400:500}
 NUM_UTURNS=${NUM_UTURNS:-100}
 NUM_TRAJECTORIES=${NUM_TRAJECTORIES:-20}
 OUTPUT_DIR=${OUTPUT_DIR:-/work/pcsl/Noam/sequential_diffusion/results/sequential_uturns}
 MODEL_PATH=${MODEL_PATH:-/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/models/256x256_diffusion_uncond.pt}
 
-IFS=',' read -r -a NOISE_LEVELS <<< "$NOISE_LEVELS_CSV"
+IFS=':' read -r -a NOISE_LEVELS <<< "$NOISE_LEVELS_SPEC"
 NUM_NOISE_LEVELS=${#NOISE_LEVELS[@]}
 
 TASK_ID=${SLURM_ARRAY_TASK_ID}
@@ -59,4 +59,3 @@ python scripts/sequential_uturns.py \
     --num_trajectories "$NUM_TRAJECTORIES" \
     --noise_step "$CURRENT_NOISE_STEP" \
     --model_path "$MODEL_PATH"
-

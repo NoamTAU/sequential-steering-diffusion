@@ -20,11 +20,13 @@ DATA_DIR=${DATA_DIR:-/work/pcsl/Noam/sequential_diffusion/results/sequential_utu
 OUTPUT_BASE=${OUTPUT_BASE:-/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results}
 STATS_DIR=${STATS_DIR:-$OUTPUT_BASE}
 IMAGE_LIST_FILE=${IMAGE_LIST_FILE:-}
-NOISE_LEVELS_CSV=${NOISE_LEVELS_CSV:-300,400,500}
+NOISE_LEVELS_SPEC=${NOISE_LEVELS_SPEC:-300:400:500}
 CLASSIFIER_NAME=${CLASSIFIER_NAME:-convnext_base}
 
 source ~/Noam/miniconda3/etc/profile.d/conda.sh
 conda activate llm_physics
+
+IFS=':' read -r -a NOISE_LEVELS <<< "$NOISE_LEVELS_SPEC"
 
 CMD=(
   python scripts/evaluate_all_images_all_noises.py
@@ -32,8 +34,9 @@ CMD=(
   --output_base "$OUTPUT_BASE"
   --stats_dir "$STATS_DIR"
   --classifier_name "$CLASSIFIER_NAME"
-  --noise_steps ${NOISE_LEVELS_CSV//,/ }
 )
+
+CMD+=(--noise_steps "${NOISE_LEVELS[@]}")
 
 if [ -n "$IMAGE_LIST_FILE" ]; then
   CMD+=(--image_list "$IMAGE_LIST_FILE")
@@ -41,6 +44,6 @@ fi
 
 echo "Running latent evaluation on data_dir=$DATA_DIR"
 echo "Image list: ${IMAGE_LIST_FILE:-<all images under data_dir>}"
-echo "Noise levels: $NOISE_LEVELS_CSV"
+echo "Noise levels: ${NOISE_LEVELS[*]}"
 
 "${CMD[@]}"
