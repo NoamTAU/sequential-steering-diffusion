@@ -166,6 +166,22 @@ python scripts/evaluate_all_images_all_noises.py \
 - `--noise_steps`: restrict evaluation to a specific subset of noise levels
 - `--max_images`: optional cap for quick tests
 
+**Check whether generation + latent evaluation are complete:**
+```bash
+python scripts/check_high_noise_latent_status.py \
+  --image-list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+  --results-root /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
+  --analysis-root /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results \
+  --noise-steps 400 600 800 \
+  --expected-trajectories 20 \
+  --expected-uturns 100
+```
+
+This reports, for each `(image, noise)` pair:
+- whether the expected number of trajectory directories exists
+- whether those trajectories reached `uturn_100`
+- whether `sequential_activations_v2.pk` has been produced
+
 ## 3) Guided Steering (Dogs → Cats or Specific Classes)
 
 **Steer between two specific ImageNet classes:** `scripts/steered_sequential_uturns_v4.py`
