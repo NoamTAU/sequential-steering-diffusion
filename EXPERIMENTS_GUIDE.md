@@ -125,6 +125,10 @@ The intended workflow is:
 3. use the notebook section `High-Noise Latent Regime Comparison` to make:
    - a row of same-observable latent-survival plots across noise
    - an AUC-based early-vs-late layer summary vs noise
+4. use the notebook section `Multi-Image Latent Survival And Single-U-Turn Noise Sweep` to:
+   - aggregate the sequential latent-survival curves across images
+   - inject the `noise_step=0` identity baseline analytically
+   - compare the single-U-turn latent profile across the sequential noise sweep
 
 **Submit a high-noise sweep over an image list:**
 ```bash
@@ -141,6 +145,21 @@ Notes:
 - `IMAGE_LIST_FILE` can be any newline-separated list of image paths.
 - `NOISE_LEVELS_CSV` should usually be the high-noise regime you want to test, e.g. `300,400,500` or `300,400,500,600`.
 - the helper computes the Slurm array size automatically from `(num_images x num_noise_levels)`.
+- in the notebook, `noise_step=0` does not need generation; it is synthesized analytically as an all-ones survival curve once at least one nonzero sequential activation set exists to define the layer list
+
+**Dedicated sequential run for the extreme-noise point `noise_step=999`:**
+```bash
+cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
+
+IMAGE_LIST_FILE=/work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+NUM_TRAJECTORIES=10 \
+NUM_UTURNS=100 \
+bash scripts/slurm/sequential/submit_high_noise_latent_999.sh
+```
+
+Notes:
+- this is just a thin wrapper over the standard high-noise array job, but keeps the `999` run reproducible and separate in command history
+- default trajectories are lower (`10`) because `noise_step=999` is the most expensive regime; increase to `20` only after checking completion/timeouts
 
 **Evaluate ConvNeXt latents only on that sweep:**
 ```bash
@@ -164,6 +183,7 @@ python scripts/evaluate_all_images_all_noises.py \
 Note:
 - `submit_high_noise_latent_sweep.sh` still accepts user-facing `NOISE_LEVELS_CSV=300,400,500`
 - internally it converts that to a colon-separated spec before calling `sbatch --export`, because commas are separators in `sbatch --export`
+- the dedicated `submit_high_noise_latent_999.sh` wrapper exports `NOISE_LEVELS_SPEC=999` directly for the same reason
 
 `evaluate_all_images_all_noises.py` now accepts:
 - `--image_list`: restrict evaluation to a newline-separated list of image paths

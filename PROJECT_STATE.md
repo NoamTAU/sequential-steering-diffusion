@@ -106,6 +106,13 @@ Decide which experiment we want to run first:
       - renders a row of same-observable latent-survival plots across selected noise levels
       - computes an early-layer vs late-layer AUC summary across noise
       - reports the regime gap `high-level AUC - low-level AUC`, which should cross zero if higher-level latents start decorrelating faster than lower-level ones at high noise
+  - Sequential latent notebook updates:
+    - the multi-image latent-survival section now supports an analytic `noise_step=0` baseline, represented as an identity curve for every latent layer and every image
+    - this lets the sequential single-U-turn and full-survival plots include the zero-noise point without running extra generation jobs
+    - the section is now configured to handle the extended sweep `[0, 100, 200, 400, 600, 800, 999]`, skipping any nonzero noise levels whose activation files are not present yet
+  - Ops helper added:
+    - `scripts/slurm/sequential/submit_high_noise_latent_999.sh`
+    - this is the dedicated wrapper to launch the extreme-noise sequential sweep at `noise_step=999`
 
 - Added a clean plotting notebook: `notebooks/plot_generation_sequential.ipynb`.
   - Generates a horizontal “cartoon” of sequential U-turns.

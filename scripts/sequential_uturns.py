@@ -81,6 +81,22 @@ def get_clip_patch_embeddings(visual_model, images, clip_normalize, clip_resize)
         # Return only the patch tokens
         return x[:, 1:, :]
 
+
+def normalize_step_embedding(embedding):
+    """
+    Standardize one trajectory step's CLIP patch embeddings to shape (num_patches, dim).
+    The runner always uses batch size 1, but resumed trajectories may load per-step arrays
+    without the singleton batch dimension already present.
+    """
+    arr = np.asarray(embedding)
+    if arr.ndim == 3:
+        if arr.shape[0] != 1:
+            raise ValueError(f"Expected singleton batch dimension for embedding, got shape {arr.shape}")
+        arr = arr[0]
+    if arr.ndim != 2:
+        raise ValueError(f"Expected 2D per-step embedding array, got shape {arr.shape}")
+    return arr
+
 def run_single_trajectory(args, model, diffusion, clip_model, device,
                           start_tensor, trajectory_dir):
     """
@@ -107,7 +123,7 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         Image.fromarray(img_to_save).save(os.path.join(trajectory_dir, "uturn_000.jpeg"))
         
         embedding = get_clip_patch_embeddings(clip_model.visual, current_image_tensor, clip_normalize, clip_resize)
-        all_embeddings.append(embedding.cpu().numpy())
+        all_embeddings.append(normalize_step_embedding(embedding.cpu().numpy()))
     else:
         # --- Continuation ---
         max_idx = -1
@@ -136,7 +152,8 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         # Load previous embeddings
         npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
         if os.path.exists(npz_path):
-            all_embeddings = list(np.load(npz_path)['embeddings'][:start_step + 1])
+            saved_embeddings = np.load(npz_path)["embeddings"][:start_step + 1]
+            all_embeddings = [normalize_step_embedding(embedding) for embedding in saved_embeddings]
             logger.log(f"Loaded {len(all_embeddings)} previous embeddings.")
         else:
             logger.log("Warning: .npz file not found. History lost, but continuing image generation.")
@@ -153,13 +170,13 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         Image.fromarray(img_to_save).save(os.path.join(trajectory_dir, f"uturn_{uturn_idx:03d}.jpeg"))
         
         embedding = get_clip_patch_embeddings(clip_model.visual, current_image_tensor, clip_normalize, clip_resize)
-        all_embeddings.append(embedding.cpu().numpy())
+        all_embeddings.append(normalize_step_embedding(embedding.cpu().numpy()))
 
         # --- INCREMENTAL SAVING ---
         npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
         np.savez(
             npz_path,
-            embeddings=np.concatenate(all_embeddings, axis=0),
+            embeddings=np.stack(all_embeddings, axis=0),
             start_image_path=args.start_image_path
         )
 
