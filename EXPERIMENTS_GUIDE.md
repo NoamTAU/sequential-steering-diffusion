@@ -102,6 +102,7 @@ Key outputs:
 - `trajectory_data.npz` (CLIP patch embeddings)
 
 Resume note:
+- `--num_uturns` is interpreted as the desired final U-turn index for each trajectory, not “add this many more steps.”
 - `scripts/sequential_uturns.py` now normalizes each saved step embedding to a consistent `(num_patches, dim)` shape.
 - If a previous run was interrupted after writing `uturn_###.jpeg` but before finishing `trajectory_data.npz`, the script will rebuild the missing embedding history from the saved images on resume instead of requiring manual cleanup.
 
@@ -109,12 +110,12 @@ Resume note:
 - `sequential_uturns_revised.py` includes manual diffusion loop and robust resume logic.
 
 **Extend an existing trajectory:**
-- Use `--trajectory_idx` to target one trajectory.
+- Use `--trajectory_idx` to target one trajectory, and set `--num_uturns` to the final total step you want that trajectory to reach.
 - Example:
 ```bash
 python scripts/sequential_uturns.py \
   --start_image_path /work/pcsl/Noam/diffusion_datasets/selected_images/ILSVRC2012_val_00000729.JPEG \
-  --num_uturns 100 \
+  --num_uturns 150 \
   --noise_step 50 \
   --trajectory_idx 7
 ```

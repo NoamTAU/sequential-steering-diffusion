@@ -121,6 +121,8 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
     """
     clip_normalize = Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
     clip_resize = Resize([224, 224])
+    npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
+    needs_history_save = False
 
     # --- Smart Detection of Last Step ---
     jpeg_paths = glob.glob(os.path.join(trajectory_dir, "uturn_*.jpeg"))
@@ -163,7 +165,6 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         current_image_tensor = load_image_tensor(last_image_path, args.image_size, device)
         
         # Load previous embeddings
-        npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
         if os.path.exists(npz_path):
             saved_embeddings = np.load(npz_path)["embeddings"][:start_step + 1]
             all_embeddings = [normalize_step_embedding(embedding) for embedding in saved_embeddings]
@@ -180,6 +181,7 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
                     clip_resize,
                     device,
                 )
+                needs_history_save = True
             logger.log(f"Loaded {len(all_embeddings)} previous embeddings.")
         else:
             logger.log("Warning: .npz file not found. Rebuilding embeddings from saved images.")
@@ -191,10 +193,25 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
                 clip_resize,
                 device,
             )
+            needs_history_save = True
+
+    if needs_history_save and all_embeddings:
+        np.savez(
+            npz_path,
+            embeddings=np.stack(all_embeddings, axis=0),
+            start_image_path=args.start_image_path
+        )
+
+    target_final_step = args.num_uturns
+    if start_step >= target_final_step:
+        logger.log(
+            f"Trajectory already reached step {start_step}; "
+            f"target final step is {target_final_step}. Nothing to do."
+        )
+        return
 
     # --- Sequential U-turn Loop ---
-    for i in range(args.num_uturns):
-        uturn_idx = start_step + 1 + i
+    for uturn_idx in range(start_step + 1, target_final_step + 1):
         logger.log(f"Performing U-turn {uturn_idx}...")
         
         current_image_tensor = perform_single_uturn(model, diffusion, current_image_tensor, args.noise_step, device)
@@ -206,7 +223,6 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         all_embeddings.append(normalize_step_embedding(embedding.cpu().numpy()))
 
         # --- INCREMENTAL SAVING ---
-        npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
         np.savez(
             npz_path,
             embeddings=np.stack(all_embeddings, axis=0),
