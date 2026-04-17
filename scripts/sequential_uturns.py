@@ -97,6 +97,23 @@ def normalize_step_embedding(embedding):
         raise ValueError(f"Expected 2D per-step embedding array, got shape {arr.shape}")
     return arr
 
+
+def load_image_tensor(image_path, image_size, device):
+    image_pil = Image.open(image_path).convert("RGB")
+    diffusion_resize = Resize([image_size, image_size], interpolation=Image.BICUBIC)
+    image_pil = diffusion_resize(image_pil)
+    image_tensor = th.tensor(np.array(image_pil)).float() / 127.5 - 1
+    return image_tensor.permute(2, 0, 1).unsqueeze(0).to(device)
+
+
+def rebuild_embeddings_from_images(image_paths, image_size, clip_model, clip_normalize, clip_resize, device):
+    rebuilt = []
+    for image_path in image_paths:
+        image_tensor = load_image_tensor(image_path, image_size, device)
+        embedding = get_clip_patch_embeddings(clip_model.visual, image_tensor, clip_normalize, clip_resize)
+        rebuilt.append(normalize_step_embedding(embedding.cpu().numpy()))
+    return rebuilt
+
 def run_single_trajectory(args, model, diffusion, clip_model, device,
                           start_tensor, trajectory_dir):
     """
@@ -128,9 +145,11 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         # --- Continuation ---
         max_idx = -1
         last_image_path = ""
+        step_to_path = {}
         for p in existing_images:
             try:
                 idx = int(os.path.splitext(os.path.basename(p))[0].split('_')[-1])
+                step_to_path[idx] = p
                 if idx > max_idx:
                     max_idx = idx
                     last_image_path = p
@@ -140,24 +159,38 @@ def run_single_trajectory(args, model, diffusion, clip_model, device,
         start_step = max_idx
         logger.log(f"Found existing trajectory. Last step was {start_step}. Continuing from here.")
         
-        last_image_pil = Image.open(last_image_path).convert("RGB")
-        
-        # RESIZE FIX: Ensure continuation image is also 256x256
-        diffusion_resize = Resize([args.image_size, args.image_size], interpolation=Image.BICUBIC)
-        last_image_pil = diffusion_resize(last_image_pil)
-        
-        current_image_tensor = th.tensor(np.array(last_image_pil)).float() / 127.5 - 1
-        current_image_tensor = current_image_tensor.permute(2, 0, 1).unsqueeze(0).to(device)
+        ordered_image_paths = [step_to_path[idx] for idx in sorted(step_to_path) if idx <= start_step]
+        current_image_tensor = load_image_tensor(last_image_path, args.image_size, device)
         
         # Load previous embeddings
         npz_path = os.path.join(trajectory_dir, "trajectory_data.npz")
         if os.path.exists(npz_path):
             saved_embeddings = np.load(npz_path)["embeddings"][:start_step + 1]
             all_embeddings = [normalize_step_embedding(embedding) for embedding in saved_embeddings]
+            if len(all_embeddings) != start_step + 1:
+                logger.log(
+                    f"Embedding/image mismatch: have {len(all_embeddings)} embeddings for "
+                    f"{start_step + 1} saved images. Rebuilding embeddings from image files."
+                )
+                all_embeddings = rebuild_embeddings_from_images(
+                    ordered_image_paths,
+                    args.image_size,
+                    clip_model,
+                    clip_normalize,
+                    clip_resize,
+                    device,
+                )
             logger.log(f"Loaded {len(all_embeddings)} previous embeddings.")
         else:
-            logger.log("Warning: .npz file not found. History lost, but continuing image generation.")
-            all_embeddings = []
+            logger.log("Warning: .npz file not found. Rebuilding embeddings from saved images.")
+            all_embeddings = rebuild_embeddings_from_images(
+                ordered_image_paths,
+                args.image_size,
+                clip_model,
+                clip_normalize,
+                clip_resize,
+                device,
+            )
 
     # --- Sequential U-turn Loop ---
     for i in range(args.num_uturns):

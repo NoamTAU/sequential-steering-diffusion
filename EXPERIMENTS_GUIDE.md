@@ -101,6 +101,10 @@ Key outputs:
 - `uturn_000.jpeg`, `uturn_001.jpeg`, …
 - `trajectory_data.npz` (CLIP patch embeddings)
 
+Resume note:
+- `scripts/sequential_uturns.py` now normalizes each saved step embedding to a consistent `(num_patches, dim)` shape.
+- If a previous run was interrupted after writing `uturn_###.jpeg` but before finishing `trajectory_data.npz`, the script will rebuild the missing embedding history from the saved images on resume instead of requiring manual cleanup.
+
 **Alternative/legacy:** `scripts/sequential_uturns_revised.py`, `scripts/sequential_uturns_old.py`
 - `sequential_uturns_revised.py` includes manual diffusion loop and robust resume logic.
 
