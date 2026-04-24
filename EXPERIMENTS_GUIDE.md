@@ -134,6 +134,11 @@ The intended workflow is:
    - aggregate the sequential latent-survival curves across images
    - inject the `noise_step=0` identity baseline analytically
    - compare the single-U-turn latent profile across the sequential noise sweep
+5. use the sequential-only diagnostics sections to check whether the current data are statistically stable enough to trust:
+   - curve stability across images
+   - sequential step-1 inversion stability
+   - classifier sensitivity (`with classifier` vs `without classifier`)
+   - relaxation ordering from the full sequential curves
 
 **Submit a high-noise sweep over an image list:**
 ```bash
@@ -151,6 +156,12 @@ Notes:
 - `NOISE_LEVELS_CSV` should usually be the high-noise regime you want to test, e.g. `300,400,500` or `300,400,500,600`.
 - the helper computes the Slurm array size automatically from `(num_images x num_noise_levels)`.
 - in the notebook, `noise_step=0` does not need generation; it is synthesized analytically as an all-ones survival curve once at least one nonzero sequential activation set exists to define the layer list
+
+Current recommended latent sweep status:
+- completed sequential pilot:
+  - `noise_step = 100, 200, 400, 600, 800` with `20` trajectories per image on the 20-image list
+  - `noise_step = 999` with `10` trajectories per image on the same list
+- the `999` run is currently treated as a high-noise extension point rather than a trajectory-matched continuation of the `20`-trajectory sweep
 
 **Dedicated sequential run for the extreme-noise point `noise_step=999`:**
 ```bash
@@ -194,6 +205,43 @@ Note:
 - `--image_list`: restrict evaluation to a newline-separated list of image paths
 - `--noise_steps`: restrict evaluation to a specific subset of noise levels
 - `--max_images`: optional cap for quick tests
+
+### Current Sequential Latent Notebook Outputs
+
+The current latent-analysis workflow in `notebooks/plot_generation_sequential.ipynb` should be understood in the following order:
+
+1. `High-Noise Latent Regime Comparison`
+- single-image comparison across noise
+- useful for quick sanity checks and exploratory visualization
+
+2. `Multi-Image Latent Survival And Single-U-Turn Noise Sweep`
+- averages trajectories first, then images
+- builds the main multi-image sequential latent-survival curves across noise
+- includes the analytic `noise_step=0` baseline
+
+3. `Curve Stability Diagnostics`
+- uses the sequential analysis tree only
+- reports:
+  - image-level SD and SEM around the low/high grouped survival curves
+  - split-half stability across image subsets
+  - sequential step-1 inversion statistics
+  - bootstrap estimate of the sequential step-1 crossing point
+
+4. `Classifier Sensitivity And Sequential Relaxation Ordering`
+- compares `with classifier` vs `without classifier` high-layer summaries
+- exports:
+  - all-layer step-1 noise sweep plots for both variants
+  - relaxation-ordering plots using:
+    - AUC of image-averaged curves
+    - mean of per-image AUCs
+    - half-life ordering
+
+Interpretation conventions:
+- “low” and “high” refer to the first / last `LOW_LAYER_COUNT` and `HIGH_LAYER_COUNT` entries after sorting layers by ConvNeXt feature depth, with the classifier/head placed last
+- grouped summaries always average trajectories first and images second
+- the notebook now shows both AUC aggregation conventions explicitly:
+  - integrate image-averaged curves
+  - compute per-image AUCs first, then average across images
 
 **Check whether generation + latent evaluation are complete:**
 ```bash

@@ -89,6 +89,41 @@ Decide which experiment we want to run first:
 3. **Analysis pass** over existing trajectories.
 
 ## Recent Updates
+- Session update (2026-04-24):
+  - High-noise sequential latent sweep status:
+    - the sequential ergodicity sweep is now complete for the 20-image pilot at:
+      - `noise_step = 100, 200, 400, 600, 800` with `20` trajectories per image
+      - `noise_step = 999` with `10` trajectories per image
+    - latent evaluation is complete for these sweeps under:
+      - `scripts/sequential_analysis_results/convnext_base/<image>/noise_<t>/sequential_activations_v2.pk`
+    - `noise_step = 0` is treated analytically in the notebook as the identity baseline and is not generated on the cluster
+  - Sequential runner / recovery fixes:
+    - `scripts/sequential_uturns.py` now:
+      - stores each step embedding in a consistent `(num_patches, dim)` shape
+      - rebuilds missing embedding history from saved `uturn_###.jpeg` files if a run was interrupted before `trajectory_data.npz` finished writing
+      - interprets `--num_uturns` as the target final U-turn index, which makes manifest-based recovery correct
+  - Current notebook analysis state:
+    - `notebooks/plot_generation_sequential.ipynb` now contains sequential-only latent analysis sections for:
+      - high-noise latent regime comparison
+      - multi-image latent survival and sequential step-1 noise sweeps
+      - sequential curve-stability diagnostics
+      - classifier sensitivity (`with classifier` vs `without classifier`)
+      - relaxation ordering using three summaries:
+        1. integrate image-averaged low/high curves
+        2. average per-image AUCs
+        3. compare low/high half-life to a fixed survival threshold
+      - all-layer sequential step-1 noise plots, with and without classifier, using a low→high color bar instead of a legend
+    - the notebook also now reports both AUC aggregation conventions explicitly, rather than silently using only one
+  - Current scientific interpretation from the sequential data:
+    - using the same sequential runs for both single-step and multi-step summaries, the step-1 ordering inversion is now established on the 20-image pilot:
+      - low-level latents relax faster than high-level latents at lower noise
+      - the ordering flips at high noise, with the crossover in the current sequential dataset around `rho ~ 0.75`
+    - the exact transition region is still broadest near `rho = 0.6–0.8`, so more images would tighten the crossover estimate more effectively than adding trajectories
+    - the classifier/head layer can bias the highest-layer summary, so the current recommendation is to show both:
+      - including classifier
+      - excluding classifier
+      and avoid relying on the classifier head alone for the main claim
+
 - Session update (2026-04-15):
   - Project split:
     - the work is now being separated into two streams:
