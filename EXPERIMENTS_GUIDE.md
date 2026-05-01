@@ -1,6 +1,10 @@
 # Sequential Steering Diffusion — Commands & Experiments
 
+Last updated: 2026-04-30.
+
 This file summarizes the scripts, Slurm jobs, and notebooks in this repo, plus example commands to launch each experiment. It is tailored to the PCSL/SSH paths and the `llm_physics` conda environment.
+
+Current default boot mode is the theory / ergodicity stream: use existing sequential latent data first, and only run new jobs if the session explicitly needs status recovery or tighter crossover localization.
 
 ## 0) Assumptions and Common Paths
 
@@ -18,6 +22,52 @@ Common defaults used throughout scripts and notebooks:
   - `/work/pcsl/Noam/sequential_diffusion/results/manifold_probe`
 
 If you change any of these, keep the SSH-side structure consistent to avoid clashes.
+
+### Codex Kuma Access Protocol
+
+Codex can operate Kuma directly once the local SSH alias is available and the
+user approves the command. Current route:
+
+```text
+ssh alias: kuma
+host: kuma.hpc.epfl.ch
+user: nlevi
+local SSH config: ~/.ssh/config
+```
+
+Use this for status checks, repo updates, Slurm submission, queue inspection,
+and log tails:
+
+```bash
+ssh kuma 'hostname'
+ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --short --branch'
+ssh kuma 'cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion && sbatch <job.slurm>'
+ssh kuma 'squeue -u nlevi'
+```
+
+Shared convention across Kuma projects:
+
+```text
+/home/nlevi/Noam/<project>       code checkout and small git-synced analysis outputs
+/work/pcsl/Noam/<project>        heavy data, model outputs, checkpoints, caches, logs
+```
+
+For this project, the main cluster code path is:
+
+```text
+/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
+```
+
+and the main heavy-output tree is:
+
+```text
+/work/pcsl/Noam/sequential_diffusion
+```
+
+If a repo has no normal remote, Codex can sync it by creating a local git
+bundle, copying it with `scp`, and checking it out on Kuma. Prefer normal
+`git pull --rebase` / `git push` when a remote exists, and always inspect
+`git status --short --branch` before overwriting any cluster tree.
 
 ## 1) Repo Sync and Plot Download Helpers
 
@@ -244,13 +294,26 @@ Interpretation conventions:
   - compute per-image AUCs first, then average across images
 
 **Check whether generation + latent evaluation are complete:**
+
+For the trajectory-matched pilot points:
 ```bash
 python scripts/check_high_noise_latent_status.py \
   --image-list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
   --results-root /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
   --analysis-root /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results \
-  --noise-steps 400 600 800 \
+  --noise-steps 100 200 400 600 800 \
   --expected-trajectories 20 \
+  --expected-uturns 100
+```
+
+For the extreme-noise extension point:
+```bash
+python scripts/check_high_noise_latent_status.py \
+  --image-list /work/pcsl/Noam/sequential_diffusion/metadata/high_noise_image_list.txt \
+  --results-root /work/pcsl/Noam/sequential_diffusion/results/sequential_uturns \
+  --analysis-root /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion/scripts/sequential_analysis_results \
+  --noise-steps 999 \
+  --expected-trajectories 10 \
   --expected-uturns 100
 ```
 

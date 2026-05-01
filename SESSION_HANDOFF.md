@@ -1,5 +1,7 @@
 # Session Handoff
 
+Last updated: 2026-04-30.
+
 This file is the first thing to read at the start of the next session for this project.
 
 ## Recovery Order
@@ -9,7 +11,10 @@ To recover context with minimal loss, read in this order:
 1. This file: [`SESSION_HANDOFF.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/SESSION_HANDOFF.md)
 2. Current project summary: [`PROJECT_STATE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/PROJECT_STATE.md)
 3. Operational workflow / commands: [`EXPERIMENTS_GUIDE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/EXPERIMENTS_GUIDE.md)
-4. Recent repo history:
+4. Current git state and recent repo history:
+   ```bash
+   git status --short --branch
+   ```
    ```bash
    git log --oneline -15
    ```
@@ -17,6 +22,52 @@ To recover context with minimal loss, read in this order:
    [`notebooks/plot_generation_sequential.ipynb`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/notebooks/plot_generation_sequential.ipynb)
 
 If the next session is about cluster status rather than notebook interpretation, also rerun the status check commands in the `Data Status Checks` section below before doing anything else.
+
+## Codex / Kuma Protocol
+
+Codex can access Kuma from the local machine through the SSH alias `kuma` after
+the user approves the command:
+
+```bash
+ssh kuma 'hostname'
+```
+
+Use this for cluster status checks, repo updates, `sbatch`, `squeue`, and log
+tails. Current shared convention for Kuma projects:
+
+```text
+/home/nlevi/Noam/<project>       code checkout and small git-synced outputs
+/work/pcsl/Noam/<project>        heavy data, raw outputs, checkpoints, caches, logs
+```
+
+For this guided-diffusion project:
+
+```text
+code:  /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion
+work:  /work/pcsl/Noam/sequential_diffusion
+env:   llm_physics
+```
+
+Before making changes on Kuma, inspect:
+
+```bash
+ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --short --branch'
+```
+
+If a future Kuma project has no remote, Codex can sync it using a local git
+bundle copied with `scp`; prefer normal git remotes when available. Avoid
+destructive cluster operations unless the exact target is known and explicitly
+approved.
+
+## Current Session Snapshot
+
+Status checked locally on 2026-04-30:
+
+- repo was clean on `main`, tracking `origin/main`
+- latest local commit was `8e49579 Add session handoff document`
+- no cluster status checks were rerun in this local session
+- no notebook sections were rerun in this local session
+- this update only refreshes boot / documentation state for the next session
 
 ## Current Focus
 
@@ -229,15 +280,32 @@ This point exists as a real sequential run and is not synthetic, but it currentl
 
 ## What To Do At The Start Of The Next Session
 
-1. Pull latest repo:
+1. Enter the repo and check local state:
+   ```bash
+   cd /Users/noamlevi/My\ Drive/Research/Codex/sequential-steering-diffusion
+   git status --short --branch
+   ```
+2. Pull latest repo if the tree is clean:
    ```bash
    git pull --rebase
    ```
-2. Read this handoff file.
-3. Read [`PROJECT_STATE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/PROJECT_STATE.md).
-4. If the session involves commands or reruns, read [`EXPERIMENTS_GUIDE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/EXPERIMENTS_GUIDE.md).
-5. If the session is analysis-focused, open and rerun only the relevant late notebook sections, not the whole notebook.
-6. If the session is status-focused, rerun the status-check commands above before making any assumption.
+3. Read this handoff file.
+4. Read [`PROJECT_STATE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/PROJECT_STATE.md).
+5. If the session involves commands, reruns, or cluster work, read [`EXPERIMENTS_GUIDE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/EXPERIMENTS_GUIDE.md).
+6. Decide the session mode before touching the notebook:
+   - paper / analysis mode: rerun only the relevant late notebook sections, not the whole notebook
+   - status mode: rerun the high-noise latent status checks below before interpreting missing data
+   - ops mode: start from the commands in `EXPERIMENTS_GUIDE.md`
+7. If analysis figures are the goal, prioritize exporting the theory-facing sequential latent plots and keep the headline claim sequential-only.
+
+## Immediate Next Work Options
+
+Most likely next useful tasks:
+
+- turn the established sequential-only inversion result into paper-ready figure exports
+- decide whether the main text excludes the classifier head by default and shows inclusion as sensitivity
+- write the theory-facing interpretation of the low/high inversion without relying on the classifier head
+- only collect more data if tighter crossover localization is needed; more images are more valuable than more trajectories
 
 ## What Still Needs Judgment Next Time
 
