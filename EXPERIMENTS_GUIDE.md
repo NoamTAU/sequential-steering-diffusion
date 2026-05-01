@@ -50,6 +50,8 @@ Shared convention across Kuma projects:
 ```text
 /home/nlevi/Noam/<project>       code checkout and small git-synced analysis outputs
 /work/pcsl/Noam/<project>        heavy data, model outputs, checkpoints, caches, logs
+/work/pcsl/Noam/<project>/conda_envs
+                                      large CUDA conda envs when home quota is tight
 ```
 
 For this project, the main cluster code path is:
