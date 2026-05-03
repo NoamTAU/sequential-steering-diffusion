@@ -87,9 +87,11 @@ def make_three_panel(args: argparse.Namespace) -> tuple[Path, Path]:
     if len(noise_steps) == 1:
         axes = [axes]
 
+    high_noise = max(noise_steps)
     for ax, noise in zip(axes, noise_steps):
         sub_noise = df[df["noise_step"] == noise].copy()
         rho = float(sub_noise["rho"].iloc[0])
+        panel_curves = []
         for layer in layer_names:
             sub = sub_noise[sub_noise["layer"] == layer].sort_values("x")
             if sub.empty:
@@ -105,10 +107,13 @@ def make_three_panel(args: argparse.Namespace) -> tuple[Path, Path]:
                 x_vals = rho * n_steps
             else:
                 x_vals = n_steps
+            y_vals = sub["mean_cosine"].to_numpy(dtype=float)
+            color = cmap(norm(layer_idx))
+            panel_curves.append((x_vals, y_vals, color))
             ax.plot(
                 x_vals,
-                sub["mean_cosine"],
-                color=cmap(norm(layer_idx)),
+                y_vals,
+                color=color,
                 marker="o",
                 markevery=max(1, len(sub) // 6),
                 markersize=3.4,
@@ -122,6 +127,19 @@ def make_three_panel(args: argparse.Namespace) -> tuple[Path, Path]:
             ax.set_xlabel(r"Cumulative noise  $\rho \cdot n$")
         else:
             ax.set_xlabel(r"U-turn step  $n$")
+        if args.zoom_inset and noise == high_noise and panel_curves:
+            inset = ax.inset_axes([0.38, 0.47, 0.56, 0.45])
+            for x_vals, y_vals, color in panel_curves:
+                inset.plot(x_vals, y_vals, color=color, linewidth=1.4, alpha=0.95)
+            inset.axhline(0.0, color="black", linestyle="--", linewidth=0.6)
+            zoom_xmax = args.zoom_xmax if args.zoom_xmax is not None else ax.get_xlim()[1]
+            inset.set_xlim(args.zoom_xmin, zoom_xmax)
+            inset.set_ylim(args.zoom_ymin, args.zoom_ymax)
+            inset.set_xticks([25, 50, 75, args.num_uturns])
+            inset.set_yticks([args.zoom_ymin, (args.zoom_ymin + args.zoom_ymax) / 2, args.zoom_ymax])
+            inset.tick_params(labelsize=max(args.font_size - 5, 6), pad=1)
+            inset.grid(True, alpha=0.22, linewidth=0.55)
+            inset.set_title("zoom", fontsize=max(args.font_size - 3, 7), pad=2)
     axes[0].set_ylabel(r"correlation $C_\ell(n)$")
 
     scalar = ScalarMappable(cmap=cmap, norm=norm)
@@ -156,6 +174,11 @@ def create_argparser() -> argparse.ArgumentParser:
         default="uturn_step",
     )
     parser.add_argument("--font-size", type=int, default=13)
+    parser.add_argument("--zoom-inset", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--zoom-xmin", type=float, default=1.0)
+    parser.add_argument("--zoom-xmax", type=float, default=None)
+    parser.add_argument("--zoom-ymin", type=float, default=0.0)
+    parser.add_argument("--zoom-ymax", type=float, default=0.1)
     parser.add_argument(
         "--exclude-classifier",
         action=argparse.BooleanOptionalAction,
