@@ -21,6 +21,17 @@ notebooks/notebooks/_exports/
 *.out
 *.err
 
+# --- Tracked paper/result artifacts ---
+!results/
+!results/**
+results/**/*.npz
+results/**/*.pt
+results/**/*.pth
+results/**/*.pkl
+results/**/*.pk
+results/**/*.out
+results/**/*.err
+
 # --- Slurm Logs ---
 slurm_logs/
 scripts/slurm_logs/
