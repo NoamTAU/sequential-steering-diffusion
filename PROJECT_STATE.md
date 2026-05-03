@@ -116,6 +116,11 @@ Steering remains a separate, deprioritized stream unless the next session explic
     - tracked remote: `origin/main`
     - dirty file: `notebooks/plot_generation_sequential.ipynb`
     - latest visible cluster commit: `d299499 Fix mathtext labels in relaxation plot`
+    - documentation files were copied onto the older cluster checkout for
+      readability, so cluster `git status` may also show docs as dirty/untracked
+      until the checkout is reconciled with GitHub
+    - dirty cluster notebook backup:
+      `/work/pcsl/Noam/sequential_diffusion/metadata/notebook_backups/plot_generation_sequential.cluster_dirty_20260503_1336.ipynb`
   - Local repo was ahead of the cluster checkout; latest local commit before this
     documentation update was `fd5bbc0 Document work storage for Kuma environments`.
   - Next session should decide what to do with the dirty cluster notebook before

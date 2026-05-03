@@ -86,6 +86,14 @@ Status checked locally and on Kuma on 2026-05-03 13:36 CEST:
 - Kuma checkout was behind local GitHub state and had a dirty
   `notebooks/plot_generation_sequential.ipynb` autosave; do not overwrite that
   notebook without first deciding whether cluster-side notebook edits matter
+- current documentation files were copied to the older Kuma checkout for
+  readability, so cluster `git status` may also show
+  `SESSION_HANDOFF.md`, `PROJECT_STATE.md`, and `EXPERIMENTS_GUIDE.md` as
+  local changes/untracked until the checkout is reconciled with GitHub
+- source-of-truth documentation commit on GitHub is
+  `5fdf350 Document diffusion Kuma startup protocol`
+- the dirty cluster notebook was backed up at
+  `/work/pcsl/Noam/sequential_diffusion/metadata/notebook_backups/plot_generation_sequential.cluster_dirty_20260503_1336.ipynb`
 - cluster data completeness checks were rerun:
   - `noise_step = 100, 200, 400, 600, 800`: generation/evaluation complete
     `100/100`
@@ -108,6 +116,11 @@ ssh kuma 'cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion && git restor
 
 If the notebook edits may matter, inspect or copy the notebook first instead of
 restoring it.
+
+If the copied documentation files are the only non-notebook obstacle to a pull,
+prefer reading them locally/from GitHub, then reconcile the cluster checkout
+directly in that session. Do not delete the notebook autosave unless the backup
+above has been checked or the session explicitly decides it is disposable.
 
 ## Current Focus
 
