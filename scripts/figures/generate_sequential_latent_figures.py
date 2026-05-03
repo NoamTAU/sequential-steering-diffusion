@@ -33,13 +33,14 @@ DEFAULT_IMAGE_LIST = Path(
 DEFAULT_NOISE_STEPS = [0, 100, 200, 400, 600, 800, 999]
 
 
-def layer_sort_key(name: str) -> tuple[int, int | str]:
+def layer_sort_key(name: str) -> tuple:
     if name == "classifier" or name.endswith("head"):
         return (2, 999)
-    match = re.search(r"features\.(\d+)", name)
-    if match:
-        return (1, int(match.group(1)))
-    return (0, name)
+    if name.startswith("features."):
+        nums = tuple(int(part) for part in re.findall(r"\d+", name))
+        if nums:
+            return (0, *nums)
+    return (1, name)
 
 
 def is_classifier_layer(name: str) -> bool:
