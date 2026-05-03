@@ -1,5 +1,7 @@
 # Sequential-Steering-Diffusion — Project Memory
 
+Last updated: 2026-05-03.
+
 ## High-Level Goal (My Understanding)
 This repo is a fork of OpenAI’s guided-diffusion codebase, extended to study **sequential forward–backward (“U‑turn”) dynamics** on images and to **steer those trajectories** using a classifier. The central idea is:
 - Start from a real image.
@@ -76,6 +78,16 @@ Notes:
 ## HPC / Slurm Assumptions
 Slurm scripts in `scripts/` run on an H100 partition and assume a conda env `llm_physics`. They reference paths like `/work/pcsl/Noam/...`. These need updating for local runs.
 
+Current Kuma locations:
+- code: `/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion`
+- heavy outputs/data: `/work/pcsl/Noam/sequential_diffusion`
+- env: `llm_physics`
+
+Codex can work with Kuma directly through the SSH alias `kuma`; the preferred
+future workflow is to check cluster status, submit jobs, tail logs, and copy
+compact outputs directly from Codex instead of routing every state change
+through manual git syncs.
+
 ## Notes / Potential Pitfalls
 - Several scripts call `diffusion.p_sample_loop_forw_back`, but that function **is not present** in `guided_diffusion/gaussian_diffusion.py`. The revised U‑turn script avoids this by manually looping.
 - Many hardcoded paths point to HPC locations; adapt when running locally.
@@ -83,12 +95,54 @@ Slurm scripts in `scripts/` run on an H100 partition and assume a conda env `llm
 - When updating on HPC, `.ipynb` merges can conflict easily. If you don’t intend to keep local notebook edits on the cluster, the simplest resolution is to discard local notebook changes and check out the remote version (see `EXPERIMENTS_GUIDE.md` for the exact commands we use).
 
 ## Next Step When Resuming
-Decide which experiment we want to run first:
-1. **Unsteered U‑turns** (baseline drift + CLIP embeddings), or
-2. **Steered U‑turns** (classifier‑guided trajectory), or
-3. **Analysis pass** over existing trajectories.
+Default next session should start from the sequential latent-analysis state, not from a new steering run.
+
+Recommended boot choice:
+1. **Paper / analysis pass over existing sequential trajectories**: rerun only the late notebook sections needed for theory-facing latent figures.
+2. **Status pass**: if there is any doubt about cluster completeness, run the high-noise latent status checks from `SESSION_HANDOFF.md` before interpreting missing files.
+3. **New experiments**: only launch more image data if the goal is tighter crossover localization; more images are expected to help more than more trajectories.
+
+Steering remains a separate, deprioritized stream unless the next session explicitly pivots back to the steering paper.
 
 ## Recent Updates
+- Session update (2026-05-03):
+  - Documentation updated for direct Codex/Kuma operation.
+  - Verified on Kuma that the high-noise sequential latent dataset is complete:
+    - `noise_step = 100, 200, 400, 600, 800`: generation/evaluation `100/100`
+    - `noise_step = 999`: generation/evaluation `20/20`
+  - Cluster checkout status at update time:
+    - path: `/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion`
+    - branch: `main`
+    - tracked remote: `origin/main`
+    - dirty file: `notebooks/plot_generation_sequential.ipynb`
+    - latest visible cluster commit: `d299499 Fix mathtext labels in relaxation plot`
+  - Local repo was ahead of the cluster checkout; latest local commit before this
+    documentation update was `fd5bbc0 Document work storage for Kuma environments`.
+  - Next session should decide what to do with the dirty cluster notebook before
+    pulling on Kuma. If those notebook edits are irrelevant autosave state, close
+    Jupyter and restore the notebook before `git pull --rebase`; otherwise copy
+    or inspect it first.
+
+- Session update (2026-04-30):
+  - Documentation / boot state refreshed for the next session.
+  - Local repo status at update time:
+    - branch: `main`
+    - tracking: `origin/main`
+    - working tree: clean
+    - latest local commit: `8e49579 Add session handoff document`
+  - No cluster status checks were rerun during this local documentation update.
+  - No notebook sections were rerun during this local documentation update.
+  - Current default boot path:
+    1. read `SESSION_HANDOFF.md`
+    2. read this file
+    3. use `EXPERIMENTS_GUIDE.md` only if commands / cluster work are needed
+    4. for analysis, rerun only the late sequential latent notebook sections
+  - Current default scientific stance remains:
+    - use the sequential dataset as the canonical source for both step-1 and multi-step summaries
+    - present the low/high latent ordering inversion as sequential-only
+    - show classifier-included and classifier-excluded variants because the classifier head can bias the top-layer summary
+    - treat the existing pilot as sufficient for the main inversion claim, with more images preferred over more trajectories for tighter crossover localization
+
 - Session update (2026-04-24):
   - High-noise sequential latent sweep status:
     - the sequential ergodicity sweep is now complete for the 20-image pilot at:

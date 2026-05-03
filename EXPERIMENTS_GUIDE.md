@@ -1,6 +1,6 @@
 # Sequential Steering Diffusion — Commands & Experiments
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-03.
 
 This file summarizes the scripts, Slurm jobs, and notebooks in this repo, plus example commands to launch each experiment. It is tailored to the PCSL/SSH paths and the `llm_physics` conda environment.
 
@@ -44,6 +44,20 @@ ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --
 ssh kuma 'cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion && sbatch <job.slurm>'
 ssh kuma 'squeue -u nlevi'
 ```
+
+For future diffusion sessions, prefer this direct route over manual
+local-git -> user-pulls-on-Kuma -> cluster-writes -> user-pushes -> local-pulls
+loops. The safe sequence is:
+
+```bash
+git status --short --branch
+ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --short --branch'
+ssh kuma 'squeue -u nlevi'
+```
+
+Then decide whether to pull, submit, or copy outputs. Never pull on the cluster
+over a dirty notebook unless the notebook edits have been inspected or declared
+irrelevant.
 
 Shared convention across Kuma projects:
 

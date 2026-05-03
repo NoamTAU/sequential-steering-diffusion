@@ -1,6 +1,6 @@
 # Session Handoff
 
-Last updated: 2026-04-30.
+Last updated: 2026-05-03.
 
 This file is the first thing to read at the start of the next session for this project.
 
@@ -25,8 +25,8 @@ If the next session is about cluster status rather than notebook interpretation,
 
 ## Codex / Kuma Protocol
 
-Codex can access Kuma from the local machine through the SSH alias `kuma` after
-the user approves the command:
+Codex can access Kuma directly from the local machine through the SSH alias
+`kuma` after the user has logged in / approved SSH access:
 
 ```bash
 ssh kuma 'hostname'
@@ -50,6 +50,17 @@ work:  /work/pcsl/Noam/sequential_diffusion
 env:   llm_physics
 ```
 
+The intended workflow for future sessions is direct Kuma operation from Codex:
+
+1. inspect local and cluster git status
+2. inspect cluster job/data status directly with `ssh kuma`
+3. submit jobs directly with `ssh kuma 'cd ... && sbatch ...'`
+4. copy compact outputs directly with `scp` when needed
+5. commit/push only after local and cluster state have been reconciled
+
+This avoids the older intermediate loop of: local git -> user pulls on Kuma ->
+cluster writes files -> user pushes -> local pulls.
+
 Before making changes on Kuma, inspect:
 
 ```bash
@@ -63,13 +74,40 @@ approved.
 
 ## Current Session Snapshot
 
-Status checked locally on 2026-04-30:
+Status checked locally and on Kuma on 2026-05-03 13:36 CEST:
 
-- repo was clean on `main`, tracking `origin/main`
-- latest local commit was `8e49579 Add session handoff document`
-- no cluster status checks were rerun in this local session
-- no notebook sections were rerun in this local session
-- this update only refreshes boot / documentation state for the next session
+- local repo is on `main`, tracking `origin/main`
+- latest local commit before this documentation update was
+  `fd5bbc0 Document work storage for Kuma environments`
+- local working tree had the pre-existing `PROJECT_STATE.md` documentation
+  update; this session incorporates it
+- Kuma code checkout exists at
+  `/home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion`
+- Kuma checkout was behind local GitHub state and had a dirty
+  `notebooks/plot_generation_sequential.ipynb` autosave; do not overwrite that
+  notebook without first deciding whether cluster-side notebook edits matter
+- cluster data completeness checks were rerun:
+  - `noise_step = 100, 200, 400, 600, 800`: generation/evaluation complete
+    `100/100`
+  - `noise_step = 999`: generation/evaluation complete `20/20`
+- no notebook sections were rerun in this documentation session
+
+Recommended first cluster action in the next diffusion session:
+
+```bash
+ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --short --branch'
+```
+
+If only `notebooks/plot_generation_sequential.ipynb` is dirty on Kuma and the
+next session does not need those cluster-side notebook edits, close the notebook
+and restore it before pulling:
+
+```bash
+ssh kuma 'cd /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion && git restore notebooks/plot_generation_sequential.ipynb && git pull --rebase'
+```
+
+If the notebook edits may matter, inspect or copy the notebook first instead of
+restoring it.
 
 ## Current Focus
 
@@ -282,23 +320,34 @@ This point exists as a real sequential run and is not synthetic, but it currentl
 
 ## What To Do At The Start Of The Next Session
 
-1. Enter the repo and check local state:
+Use this exact boot sequence for a separate diffusion Codex session:
+
+1. Start the new session with:
+   ```text
+   We are resuming the diffusion project. Read /Users/noamlevi/My Drive/Research/Codex/sequential-steering-diffusion/SESSION_HANDOFF.md first, then PROJECT_STATE.md and EXPERIMENTS_GUIDE.md. Use direct Kuma access via ssh kuma for cluster status and jobs.
+   ```
+2. Enter the repo and check local state:
    ```bash
    cd /Users/noamlevi/My\ Drive/Research/Codex/sequential-steering-diffusion
    git status --short --branch
    ```
-2. Pull latest repo if the tree is clean:
+3. Pull latest repo if the tree is clean:
    ```bash
    git pull --rebase
    ```
-3. Read this handoff file.
-4. Read [`PROJECT_STATE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/PROJECT_STATE.md).
-5. If the session involves commands, reruns, or cluster work, read [`EXPERIMENTS_GUIDE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/EXPERIMENTS_GUIDE.md).
-6. Decide the session mode before touching the notebook:
+4. Read this handoff file.
+5. Read [`PROJECT_STATE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/PROJECT_STATE.md).
+6. If the session involves commands, reruns, or cluster work, read [`EXPERIMENTS_GUIDE.md`](/Users/noamlevi/My%20Drive/Research/Codex/sequential-steering-diffusion/EXPERIMENTS_GUIDE.md).
+7. Check Kuma directly:
+   ```bash
+   ssh kuma 'git -C /home/nlevi/Noam/SingleMaskDiffusion/guided-diffusion status --short --branch'
+   ssh kuma 'squeue -u nlevi'
+   ```
+8. Decide the session mode before touching the notebook:
    - paper / analysis mode: rerun only the relevant late notebook sections, not the whole notebook
    - status mode: rerun the high-noise latent status checks below before interpreting missing data
    - ops mode: start from the commands in `EXPERIMENTS_GUIDE.md`
-7. If analysis figures are the goal, prioritize exporting the theory-facing sequential latent plots and keep the headline claim sequential-only.
+9. If analysis figures are the goal, prioritize exporting the theory-facing sequential latent plots and keep the headline claim sequential-only.
 
 ## Immediate Next Work Options
 
